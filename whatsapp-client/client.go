@@ -47,7 +47,8 @@ func newLogin(){
 */
 func (client *WhatsappClient) New() error {
 	if FileExists(configFile) {
-
+		//Try to use the config file as a session
+		
 	} else {
 	}
 }

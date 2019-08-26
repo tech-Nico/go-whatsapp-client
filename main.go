@@ -1,5 +1,9 @@
-package whatsapp-client
+package main
+
+import (
+	"fmt"
+)
 
 func main() {
-
+	fmt.Println("main.go ran")
 }
