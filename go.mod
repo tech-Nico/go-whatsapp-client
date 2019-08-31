@@ -7,5 +7,5 @@ require (
 	github.com/Rhymen/go-whatsapp v0.0.2
 	github.com/mattn/go-colorable v0.1.2 // indirect
 	github.com/sirupsen/logrus v1.4.2
-	golang.org/x/sync v0.0.0-20181221193216-37e7f081c4d4 // indirect
+	golang.org/x/tools/gopls v0.1.3 // indirect
 )

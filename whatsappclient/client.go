@@ -1,9 +1,7 @@
 package whatsappclient
 
 import (
-	"encoding/json"
-	"io"
-	"io/ioutil"
+	"encoding/gob"
 	"os"
 	"path"
 	"path/filepath"
@@ -55,27 +53,38 @@ func createConfigFileIfNeeded() (*os.File, error) {
 	return file, err
 }
 
-func writeSessionToFile(s whatsapp.Session) error {
-	loginLogger.Tracef("Writing session %v to the config file...", s)
-
+func writeSession(session whatsapp.Session) error {
+	loginLogger.Tracef("Writing session %v to the config file...", session)
 	file, err := createConfigFileIfNeeded()
 	if err != nil {
 		return err
 	}
-
-	data, _ := json.Marshal(s)
-
+	defer file.Close()
+	encoder := gob.NewEncoder(file)
+	err = encoder.Encode(session)
 	if err != nil {
+		log.Warnf("Error while encoding session: %v", err)
 		return err
+	}
+	return nil
+}
+
+func readSession() (whatsapp.Session, error) {
+	loginLogger.Debugf("Reading session from file...")
+	session := whatsapp.Session{}
+	file, err := os.Open(getConfigFileName())
+	if err != nil {
+		loginLogger.Warnf("Error while opening config file: %v", err)
+		return session, err
 	}
 	defer file.Close()
-
-	_, err = io.WriteString(file, string(data[:]))
+	decoder := gob.NewDecoder(file)
+	err = decoder.Decode(&session)
 	if err != nil {
-		return err
+		loginLogger.Warnf("Error while decoding session from file: %v", err)
+		return session, err
 	}
-
-	return file.Sync()
+	return session, nil
 }
 
 // WhatsappClient This is the client object that will allow you to do all necessary actions with your whatsapp account
@@ -83,8 +92,10 @@ type WhatsappClient struct {
 	Session whatsapp.Session
 }
 
-func newLogin(sessionStr string) (whatsapp.Session, error) {
-	loginLogger.Tracef("in newLogin with sessionStr '%s'", sessionStr)
+func newLogin(existingSession whatsapp.Session) (whatsapp.Session, error) {
+	var session whatsapp.Session
+
+	loginLogger.Tracef("in newLogin with sessionStr '%s'", existingSession)
 	wac, err := whatsapp.NewConn(5 * time.Second)
 
 	if err != nil {
@@ -94,30 +105,35 @@ func newLogin(sessionStr string) (whatsapp.Session, error) {
 	}
 
 	qr := make(chan string)
-	if sessionStr == "" {
+	if existingSession.ClientId == "" {
 		log.Debugf("No session passed. Initiate a new login..")
 		go func() {
 			terminal := qrcodeTerminal.New()
 			terminal.Get(<-qr).Print()
 		}()
+
+		session, err = wac.Login(qr)
+		if err != nil {
+			loginLogger.WithFields(log.Fields{
+				"error": err,
+			}).Error("Error while logging in to Whatsapp")
+			return whatsapp.Session{}, err
+		}
+
+		loginLogger.Info("Successfully logged in to Whatsapp")
+
 	} else {
-		loginLogger.Debugf("Session string.. resuming session.")
-		go func() {
-			log.Trace("Sending session to channel qr")
-			qr <- sessionStr
-		}()
+		session, err = wac.RestoreWithSession(existingSession)
+		if err != nil {
+			loginLogger.WithFields(log.Fields{
+				"error": err,
+			}).Warn("Error while restoring session. Re-login")
+
+			return newLogin(whatsapp.Session{})
+		}
 
 	}
 
-	session, err := wac.Login(qr)
-	if err != nil {
-		loginLogger.WithFields(log.Fields{
-			"error": err,
-		}).Error("Error while logging in to Whatsapp")
-		return whatsapp.Session{}, err
-	}
-
-	loginLogger.Info("Successfully logged in to Whatsapp")
 	return session, nil
 }
 
@@ -133,18 +149,12 @@ func NewClient() (WhatsappClient, error) {
 	if FileExists(configFile) {
 		loginLogger.Tracef("Config file '%s' exists. Resuming session...", configFile)
 		//Try to use the config file as a session
-		content, err := ioutil.ReadFile(configFile)
-
+		session, err = readSession()
 		if err != nil {
-			loginLogger.WithFields(log.Fields{
-				"error": err,
-			})
-			loginLogger.Error("Error while trying to open the config file.")
+			loginLogger.WithField("error", err).Error("Error while reading session from config file.")
 		}
-		contentStr := string(content)
-		loginLogger.Tracef("Session: %s", contentStr)
 
-		session, err = newLogin(contentStr)
+		session, err = newLogin(session)
 		if err != nil {
 			loginLogger.WithFields(log.Fields{
 				"error": err,
@@ -154,7 +164,7 @@ func NewClient() (WhatsappClient, error) {
 	} else {
 		loginLogger.Debug("Config file could not be found. Initiating new session...")
 
-		session, err = newLogin("")
+		session, err = newLogin(whatsapp.Session{})
 
 		if err != nil {
 			loginLogger.WithFields(log.Fields{
@@ -165,7 +175,7 @@ func NewClient() (WhatsappClient, error) {
 
 		loginLogger.Tracef("Successfully logged in to Whatsapp. Session : %v", session)
 		loginLogger.Debug("Storing session to config file")
-		err = writeSessionToFile(session)
+		err = writeSession(session)
 		if err != nil {
 			loginLogger.Warnf("Error while writing config file : %s", err)
 		}
