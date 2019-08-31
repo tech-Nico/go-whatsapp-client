@@ -2,6 +2,8 @@ package whatsappclient
 
 import (
 	"os"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func FileExists(filename string) bool {
@@ -11,4 +13,15 @@ func FileExists(filename string) bool {
 		return false
 	}
 	return !info.IsDir()
+}
+
+func getHomeFolder() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		log.WithFields(log.Fields{
+			"error": err,
+		}).Error("Error while detecting user home folder")
+	}
+
+	return home
 }
