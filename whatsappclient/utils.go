@@ -101,3 +101,7 @@ func readSession() (whatsapp.Session, error) {
 	}
 	return session, nil
 }
+
+func deleteSession() error {
+	return os.Remove(getConfigFileName())
+}

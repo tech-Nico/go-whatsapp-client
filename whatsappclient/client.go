@@ -1,6 +1,7 @@
 package whatsappclient
 
 import (
+	"fmt"
 	"time"
 
 	qrcodeTerminal "github.com/Baozisoftware/qrcode-terminal-go"
@@ -24,55 +25,49 @@ type waHandler struct {
 	chats map[string]struct{}
 }
 
-func newLogin(existingSession whatsapp.Session) (whatsapp.Session, whatsapp.Conn, error) {
-	var session whatsapp.Session
+func newLogin(wac *whatsapp.Conn) error {
+	//load saved session
+	log.Debug("in newLogin")
+	session, err := readSession()
+	log.WithField("session", session).Trace("session read")
+	if err == nil {
+		log.Trace("session read successful. Restoring session...")
+		//restore session
+		session, err = wac.RestoreWithSession(session)
+		if err != nil {
+			log.WithField("error", err).Warn("error while restoring session. Deleting session file")
+			err = deleteSession()
+			if err != nil {
+				return err
+			}
+			log.Debug("reattempting login...")
+			return newLogin(wac)
 
-	loginLogger.Tracef("in newLogin with sessionStr '%s'", existingSession)
-	wac, err := whatsapp.NewConn(5 * time.Second)
-	//Add handler
-	handler := &waHandler{wac, make(map[string]struct{})}
-	wac.AddHandler(handler)
-
-	if err != nil {
-		loginLogger.WithFields(log.Fields{
-			"error": err,
-		}).Panic("Error while creating a new Whatsapp connection")
-	}
-
-	if existingSession.ClientId == "" {
+		}
+		log.WithField("session", session).Trace("session restored")
+	} else {
+		log.Trace("no saved session -> regular login")
 		qr := make(chan string)
-		log.Debugf("No session passed. Initiate a new login..")
+		log.Trace("Waiting for qr code to be scanned..")
 		go func() {
 			terminal := qrcodeTerminal.New()
 			terminal.Get(<-qr).Print()
 		}()
-
 		session, err = wac.Login(qr)
+
 		if err != nil {
-			loginLogger.WithFields(log.Fields{
-				"error": err,
-			}).Error("Error while logging in to Whatsapp")
-			return whatsapp.Session{}, whatsapp.Conn{}, err
+			return fmt.Errorf("error during login: %v", err)
 		}
-
-		loginLogger.Info("Successfully logged in to Whatsapp")
-
-	} else {
-		session, err = wac.RestoreWithSession(existingSession)
-		if err != nil {
-			loginLogger.WithFields(log.Fields{
-				"error": err,
-			}).Error("Error while restoring session. Re-login")
-
-			return whatsapp.Session{}, whatsapp.Conn{}, err
-		}
-
 	}
-	// wait while chat jids are acquired through incoming initial messages
-	log.Debug("Waiting for chats info...")
-	<-time.After(5 * time.Second)
-	log.Debug("Waited for 5 seconds...")
-	return session, *wac, nil
+
+	//save session
+	log.WithField("session", session).Trace("writing session to file")
+	err = writeSession(session)
+	if err != nil {
+		return fmt.Errorf("error saving session: %v", err)
+	}
+	log.Trace("session written to file")
+	return nil
 }
 
 func (h *waHandler) ShouldCallSynchronously() bool {
@@ -109,50 +104,62 @@ If a session is stored on disk, use that session otherwise ask to login.
 If a session is stored on disk but the session is expired, then ask to login
 */
 func NewClient() (WhatsappClient, error) {
-	var session whatsapp.Session
-	var wac whatsapp.Conn
-	var err error
-	configFile := getConfigFileName()
-
-	if fileExists(configFile) {
-		loginLogger.Tracef("Config file '%s' exists. Resuming session...", configFile)
-		//Try to use the config file as a session
-		session, err = readSession()
-		if err != nil {
-			loginLogger.WithField("error", err).Error("Error while reading session from config file.")
-		}
-
-		session, wac, err = newLogin(session)
-		if err != nil {
-			loginLogger.WithFields(log.Fields{
-				"error": err,
-			}).Error("Error while creating a new Whatsapp session")
-		}
-
-	} else {
-		loginLogger.Debug("Config file could not be found. Initiating new session...")
-
-		session, wac, err = newLogin(whatsapp.Session{})
-
-		if err != nil {
-			loginLogger.WithFields(log.Fields{
-				"error": err,
-			}).Error("Error while logging in to Whatsapp")
-			return WhatsappClient{}, err
-		}
-
-		loginLogger.Tracef("Successfully logged in to Whatsapp. Session : %v", session)
-		loginLogger.Debug("Storing session to config file")
-		err = writeSession(session)
-		if err != nil {
-			loginLogger.Warnf("Error while writing config file : %s", err)
-		}
-
+	//create new WhatsApp connection
+	wac, err := whatsapp.NewConn(5 * time.Second)
+	if err != nil {
+		log.WithField("error", err).Fatal("error creating connection to Whatsapp\n", err)
 	}
 
+	//Add handler
+	handler := &waHandler{wac, make(map[string]struct{})}
+	wac.AddHandler(handler)
+
+	//login or restore
+	if err := newLogin(wac); err != nil {
+		log.WithField("error", err).Fatal("error logging in\n")
+	}
+
+	// wait while chat jids are acquired through incoming initial messages
+	fmt.Println("Waiting for chats info...")
+	<-time.After(5 * time.Second)
+
+	for chat := range handler.chats {
+		log.Debugf("Chat: %v: %v", chat, handler.chats[chat])
+	}
+	//Disconnect safely
+	log.Info("Shutting down now.")
+	session, err := wac.Disconnect()
+	if err != nil {
+		log.WithField("error", err).Fatal("error disconnecting\n")
+	}
+
+	log.WithField("session", session).Debug("successfully disconnected from whatsapp")
+
 	return WhatsappClient{
-		Session: session,
-		wac:     wac,
+		wac: *wac,
 	}, nil
+
+}
+
+func (c *WhatsappClient) Disconnect() error {
+
+	// get history synchronously
+	//	GetAnyHistory(wac, handler.chats)
+	// fmt.Println("Done. Press Ctrl+C for exit.")
+
+	// c := make(chan os.Signal, 1)
+	// signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	// <-c
+
+	//Disconnect safely
+	log.Info("Shutting down now.")
+	session, err := c.wac.Disconnect()
+	if err != nil {
+		log.WithField("error", err).Fatal("error disconnecting\n")
+	}
+
+	log.WithField("session", session).Debug("successfully disconnected from whatsapp")
+
+	return nil
 
 }

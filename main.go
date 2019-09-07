@@ -16,7 +16,7 @@ func initLogs() {
 func main() {
 	initLogs()
 	c, err := whatsappclient.NewClient()
-	
+
 	if err != nil {
 		log.WithFields(log.Fields{
 			"event": "login",
