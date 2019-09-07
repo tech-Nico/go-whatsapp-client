@@ -36,18 +36,22 @@ func getConfigFileName() string {
 }
 
 func createConfigFileIfNeeded() (*os.File, error) {
+	var file *os.File
+	var err error
+
 	log.Tracef("entered createConfigFile")
 	configFileName := getConfigFileName()
 	log.Tracef("configFileName: '%s'", configFileName)
 	dirStr, _ := path.Split(configFileName)
 	log.Tracef("The config folder: %s", dirStr)
+
 	if _, err := os.Stat(configFileName); os.IsNotExist(err) {
 		err := os.MkdirAll(dirStr, os.ModePerm)
 		if err != nil {
 			loginLogger.Errorf("Error while creating folder '%s' : %s", dirStr, err)
 		}
 
-		file, err := os.Create(configFileName)
+		file, err = os.Create(configFileName)
 
 		if err != nil {
 			log.WithFields(log.Fields{
@@ -55,15 +59,26 @@ func createConfigFileIfNeeded() (*os.File, error) {
 			}).Warnf("Error while creating configuration file '%s'", configFileName)
 		}
 
-		return file, err
+	} else {
+		if err := os.Remove(configFileName); err != nil {
+			log.WithField("error", err).Errorf("error while removing config file %s", configFileName)
+		}
+		file, err = os.Create(configFileName)
+
+		if err != nil {
+			log.WithFields(log.Fields{
+				"error": err,
+			}).Warnf("Error while creating configuration file '%s'", configFileName)
+		}
+
 	}
 
-	file, err := os.Open(configFileName)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"error": err,
-		}).Warnf("Error while opening the config file '%s'", configFileName)
-	}
+	// file, err := os.Open(configFileName)
+	// if err != nil {
+	// 	log.WithFields(log.Fields{
+	// 		"error": err,
+	// 	}).Warnf("Error while opening the config file '%s'", configFileName)
+	// }
 
 	return file, err
 }

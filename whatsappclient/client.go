@@ -141,15 +141,8 @@ func NewClient() (WhatsappClient, error) {
 
 }
 
+//Disconnect terminates whatsapp connection gracefully
 func (c *WhatsappClient) Disconnect() error {
-
-	// get history synchronously
-	//	GetAnyHistory(wac, handler.chats)
-	// fmt.Println("Done. Press Ctrl+C for exit.")
-
-	// c := make(chan os.Signal, 1)
-	// signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	// <-c
 
 	//Disconnect safely
 	log.Info("Shutting down now.")
@@ -161,5 +154,4 @@ func (c *WhatsappClient) Disconnect() error {
 	log.WithField("session", session).Debug("successfully disconnected from whatsapp")
 
 	return nil
-
 }
