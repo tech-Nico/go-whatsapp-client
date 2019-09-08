@@ -27,7 +27,9 @@ func main() {
 	initLogs()
 
 	fmt.Println("Please select table.")
+
 	t := prompt.Input("> ", completer)
+	//Check prompt.New as in https://github.com/c-bata/kube-prompt/blob/master/main.go#L33
 	fmt.Println("You selected " + t)
 
 	c, err := whatsappclient.NewClient()
