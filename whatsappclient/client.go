@@ -6,6 +6,7 @@ import (
 
 	qrcodeTerminal "github.com/Baozisoftware/qrcode-terminal-go"
 	whatsapp "github.com/Rhymen/go-whatsapp"
+	"github.com/Rhymen/go-whatsapp/binary"
 	"github.com/Rhymen/go-whatsapp/binary/proto"
 	log "github.com/sirupsen/logrus"
 )
@@ -16,8 +17,9 @@ var loginLogger = log.WithFields(log.Fields{"event": "login", "config_file": get
 
 // WhatsappClient This is the client object that will allow you to do all necessary actions with your whatsapp account
 type WhatsappClient struct {
-	Session whatsapp.Session
-	wac     whatsapp.Conn
+	Session  whatsapp.Session
+	wac      whatsapp.Conn
+	contacts *binary.Node
 }
 
 type waHandler struct {
@@ -106,6 +108,10 @@ If a session is stored on disk but the session is expired, then ask to login
 func NewClient() (WhatsappClient, error) {
 	//create new WhatsApp connection
 	wac, err := whatsapp.NewConn(5 * time.Second)
+	var newClient = WhatsappClient{
+		wac: *wac,
+	}
+	wac.SetClientName("Command Line Whatsapp Client", "CLI Whatsapp")
 	if err != nil {
 		log.WithField("error", err).Fatal("error creating connection to Whatsapp\n", err)
 	}
@@ -124,8 +130,15 @@ func NewClient() (WhatsappClient, error) {
 	<-time.After(5 * time.Second)
 
 	for chat := range handler.chats {
-		log.Debugf("Chat: %v: %v", chat, handler.chats[chat])
+		log.Tracef("Chat: %v: %v", chat, newClient.GetContactName(chat))
 	}
+
+	log.Trace("get contacts...")
+
+	if err != nil {
+		log.WithField("error", err).Error("error while retrieving contacts")
+	}
+
 	//Disconnect safely
 	log.Info("Shutting down now.")
 	session, err := wac.Disconnect()
@@ -135,10 +148,13 @@ func NewClient() (WhatsappClient, error) {
 
 	log.WithField("session", session).Debug("successfully disconnected from whatsapp")
 
-	return WhatsappClient{
-		wac: *wac,
-	}, nil
+	return newClient, nil
 
+}
+
+// GetContactName returns the name of a contact or the name of a group given its jid number
+func (c *WhatsappClient) GetContactName(jid string) string {
+	return c.wac.Store.Contacts[jid].Name
 }
 
 //Disconnect terminates whatsapp connection gracefully
