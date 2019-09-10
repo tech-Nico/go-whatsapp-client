@@ -1,4 +1,4 @@
-package whatsappclient
+package client
 
 import (
 	"encoding/gob"
