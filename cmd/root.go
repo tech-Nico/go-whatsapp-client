@@ -32,13 +32,13 @@ var (
 //specified on the command line
 func runPrompt(cmd *cobra.Command, args []string) {
 	cmp := p.NewCompleter()
-	fmt.Printf("kube-prompt %s (rev-%s)\n", version, revision)
+	fmt.Printf("whatsapp-cli %s (rev-%s)\n", version, revision)
 	fmt.Println("Please use `exit` or `Ctrl-D` to exit this program.")
 
 	p := go_prompt.New(
 		p.Executor,
 		cmp.CompleteCommand,
-		go_prompt.OptionTitle("kube-prompt: interactive kubernetes client"),
+		go_prompt.OptionTitle("whatsapp-cli: interactive CLI whatsapp"),
 		go_prompt.OptionPrefix(">>> "),
 		go_prompt.OptionInputTextColor(go_prompt.Yellow),
 		go_prompt.OptionCompletionWordSeparator(completer.FilePathCompletionSeparator),
