@@ -13,8 +13,6 @@ import (
 
 var loginLogger = log.WithFields(log.Fields{"event": "login", "config_file": getConfigFileName()})
 
-// getConfigFileName Return the full path of the config file based upon the current user's home folder
-
 // WhatsappClient This is the client object that will allow you to do all necessary actions with your whatsapp account
 type WhatsappClient struct {
 	Session  whatsapp.Session

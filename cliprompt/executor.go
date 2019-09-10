@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func Executor(s string) {
@@ -16,8 +18,9 @@ func Executor(s string) {
 		os.Exit(0)
 		return
 	}
-
-	cmd := exec.Command("/bin/sh", "-c", "go-whatsapp-client "+s)
+	log.Debugf("Executing %s", s)
+	// cmd := exec.Command("/bin/sh", "-c", "go-whatsapp-client "+s)
+	cmd := exec.Command("/bin/sh", "-c", "./whatsapp-cli "+s)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

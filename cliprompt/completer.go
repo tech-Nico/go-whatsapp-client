@@ -33,8 +33,7 @@ func NewCompleter() *Completer {
 func (c *Completer) CompleteCommand(doc go_prompt.Document) []go_prompt.Suggest {
 	s := []go_prompt.Suggest{
 		{Text: "login", Description: "Login into whatsapp scanning a QR code"},
-		{Text: "list chats", Description: "List all the current chats"},
-		{Text: "comments", Description: "Store the text commented to articles"},
+		{Text: "get", Description: "List all the current chats"},
 	}
 	return go_prompt.FilterHasPrefix(s, doc.GetWordBeforeCursor(), true)
 }

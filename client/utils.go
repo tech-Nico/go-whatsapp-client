@@ -30,6 +30,7 @@ func getHomeFolder() string {
 	return home
 }
 
+// getConfigFileName Return the full path of the config file based upon the current user's home folder
 func getConfigFileName() string {
 	home := getHomeFolder()
 	return filepath.Join(home, ".go-whatsapp-client/config.conf")
@@ -72,13 +73,6 @@ func createConfigFileIfNeeded() (*os.File, error) {
 		}
 
 	}
-
-	// file, err := os.Open(configFileName)
-	// if err != nil {
-	// 	log.WithFields(log.Fields{
-	// 		"error": err,
-	// 	}).Warnf("Error while opening the config file '%s'", configFileName)
-	// }
 
 	return file, err
 }

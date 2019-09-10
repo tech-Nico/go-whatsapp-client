@@ -18,7 +18,9 @@ GO ?= GO111MODULE=on go
 
 .PHONY: fmt
 fmt: ## Formatting source codes.
-	@$(GOIMPORTS) -w ./kube
+	@$(GOIMPORTS) -w ./cmd 
+	@$(GOIMPORTS) -w ./cliprompt
+	@$(GOIMPORTS) -w ./client
 
 .PHONY: lint
 lint: ## Run golint and go vet.
@@ -42,12 +44,12 @@ cross: main.go  ## Build binaries for cross platform.
 	@# darwin
 	@for arch in "amd64" "386"; do \
 		GOOS=darwin GOARCH=$${arch} make build; \
-		zip pkg/kube-prompt_$(VERSION)_darwin_$${arch}.zip kube-prompt; \
+		zip pkg/whatsapp-cli_$(VERSION)_darwin_$${arch}.zip whatsapp-cli; \
 	done;
 	@# linux
 	@for arch in "amd64" "386" "arm64" "arm"; do \
 		GOOS=linux GOARCH=$${arch} make build; \
-		zip pkg/kube-prompt_$(VERSION)_linux_$${arch}.zip kube-prompt; \
+		zip pkg/whatsapp-cli_$(VERSION)_linux_$${arch}.zip whatsapp-cli; \
 	done;
 
 .PHONY: help
