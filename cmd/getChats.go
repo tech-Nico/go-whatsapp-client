@@ -18,10 +18,12 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/tech-nico/whatsapp-cli/client"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/tech-nico/whatsapp-cli/client"
+	"sort"
+	"strconv"
+	"time"
 )
 
 // getChatsCmd represents the getChats command
@@ -39,9 +41,35 @@ func getChats(cmd *cobra.Command, args []string) {
 		log.Errorf("Error while initializing Whatsapp client: %s", err)
 	}
 	chats := wc.GetChats()
+	type orderedChat struct {
+		Name string
+		Time int64
+	}
+	ordered := make([]orderedChat, 0)
+
 	log.Debugf("Chats is %v", chats)
-	for k, v := range chats {
-		fmt.Printf("%s: %s\n", k, v.Name)
+	for _, v := range chats {
+
+		time, err := strconv.ParseInt(v.LastMessageTime, 10, 64)
+		if err != nil {
+			log.Warnf("Error while converting a timestamp to integer: %s. Skipping this chat...", err)
+			continue
+		}
+
+		newChat := orderedChat{
+			Name: v.Name,
+			Time: time,
+		}
+
+		ordered = append(ordered, newChat)
+	}
+
+	sort.Slice(ordered, func(i, j int) bool {
+		return ordered[i].Time < ordered[j].Time
+	})
+
+	for k := range ordered {
+		fmt.Printf("%s - %s\n", time.Unix(ordered[k].Time, 0), ordered[k].Name)
 	}
 }
 

@@ -6,7 +6,6 @@ import (
 
 	qrcodeTerminal "github.com/Baozisoftware/qrcode-terminal-go"
 	whatsapp "github.com/Rhymen/go-whatsapp"
-	"github.com/Rhymen/go-whatsapp/binary"
 	"github.com/Rhymen/go-whatsapp/binary/proto"
 	log "github.com/sirupsen/logrus"
 )
@@ -15,20 +14,13 @@ var loginLogger = log.WithFields(log.Fields{"event": "login", "config_file": get
 
 // WhatsappClient This is the client object that will allow you to do all necessary actions with your whatsapp account
 type WhatsappClient struct {
-	Session  whatsapp.Session
-	wac      whatsapp.Conn
-	contacts *binary.Node
-	chats    map[string]Chat
-}
-
-type Chat struct {
-	Name    string
-	IsGroup bool
+	Session whatsapp.Session
+	wac     whatsapp.Conn
 }
 
 type waHandler struct {
 	c     *whatsapp.Conn
-	chats map[string]struct{}
+	chats map[string]*proto.WebMessageInfo
 }
 
 func newLogin(wac *whatsapp.Conn) error {
@@ -83,7 +75,7 @@ func (h *waHandler) ShouldCallSynchronously() bool {
 func (h *waHandler) HandleRawMessage(message *proto.WebMessageInfo) {
 	// gather chats jid info from initial messages
 	if message != nil && message.Key.RemoteJid != nil {
-		h.chats[*message.Key.RemoteJid] = struct{}{}
+		h.chats[*message.Key.RemoteJid] = message
 	}
 }
 
@@ -113,7 +105,6 @@ func NewClient() (WhatsappClient, error) {
 	//create new WhatsApp connection
 	wac, err := whatsapp.NewConn(5 * time.Second)
 
-	var chats = make(map[string]Chat, 0)
 	var newClient = WhatsappClient{
 		wac: *wac,
 	}
@@ -123,7 +114,7 @@ func NewClient() (WhatsappClient, error) {
 	}
 
 	//Add handler
-	handler := &waHandler{wac, make(map[string]struct{})}
+	handler := &waHandler{wac, make(map[string]*proto.WebMessageInfo)}
 	wac.AddHandler(handler)
 
 	//login or restore
@@ -135,16 +126,17 @@ func NewClient() (WhatsappClient, error) {
 	fmt.Println("Waiting for chats info...")
 	<-time.After(5 * time.Second)
 
-	for chatJid := range handler.chats {
-		contactName := newClient.GetContactName(chatJid)
-		log.Tracef("Chat: %v: %v", chatJid, contactName)
-		newChat := Chat{
-			Name: contactName,
-		}
-		chats[chatJid] = newChat
-	}
-	newClient.chats = chats
-	log.Trace("get contacts...")
+	// for chatJid := range handler.chats {
+	// 	contactName := newClient.GetContactName(chatJid)
+	// 	webMessageInfo := handler.chats[chatJid]
+	// 	log.Tracef("Chat: %v: %v", chatJid, contactName)
+	// 	newChat := Chat{
+	// 		Name: webMessageInfo.GetMessage().GetContactMessage().GetDisplayName(),
+	// 	}
+	// 	chats[chatJid] = newChat
+	// }
+	// newClient.chats = chats
+	// log.Trace("get contacts...")
 
 	if err != nil {
 		log.WithField("error", err).Error("error while retrieving contacts")
@@ -168,8 +160,12 @@ func (c *WhatsappClient) GetContactName(jid string) string {
 	return c.wac.Store.Contacts[jid].Name
 }
 
-func (c *WhatsappClient) GetChats() map[string]Chat {
-	return c.chats
+func (c *WhatsappClient) GetChats() map[string]whatsapp.Chat {
+	return c.wac.Store.Chats
+}
+
+func (c *WhatsappClient) GetContacts() map[string]whatsapp.Contact {
+	return c.wac.Store.Contacts
 }
 
 //Disconnect terminates whatsapp connection gracefully
