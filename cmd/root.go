@@ -9,24 +9,38 @@ import (
 	go_prompt "github.com/c-bata/go-prompt"
 	completer "github.com/c-bata/go-prompt/completer"
 	homedir "github.com/mitchellh/go-homedir"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	p "github.com/tech-nico/whatsapp-cli/cliprompt"
 )
 
 var cfgFile string
+var isTrace bool
+var isDebug bool
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "whatsapp-cli",
-	Short: "Use Whatsapp on the command line",
-	Long:  `The first (hopefully) CLI program that allows you to use whatsapp on the command line`,
-	Run:   runPrompt,
+	Use:              "whatsapp-cli",
+	Short:            "Use Whatsapp on the command line",
+	Long:             `The first (hopefully) CLI program that allows you to use whatsapp on the command line`,
+	Run:              runPrompt,
+	PersistentPreRun: initialize,
 }
 
 var (
 	version  string
 	revision string
 )
+
+func initialize(cmd *cobra.Command, args []string) {
+	if isTrace {
+		log.SetLevel(log.TraceLevel)
+	} else if isDebug {
+		log.SetLevel(log.DebugLevel)
+	} else {
+		log.SetLevel(log.InfoLevel)
+	}
+}
 
 //runPrompt execute the go-prompt version of the CLI if no parameters are
 //specified on the command line
@@ -64,10 +78,11 @@ func init() {
 	// will be global for your application.
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.whatsapp-cli.yaml)")
-
+	rootCmd.PersistentFlags().BoolVarP(&isTrace, "trace", "t", false, "Set verbosity to trace")
+	rootCmd.PersistentFlags().BoolVarP(&isDebug, "debug", "d", false, "Set verbosity to debug")
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	//rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
 // initConfig reads in config file and ENV variables if set.

@@ -18,6 +18,9 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/tech-nico/whatsapp-cli/client"
+
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -26,9 +29,20 @@ var getChatsCmd = &cobra.Command{
 	Use:   "chats",
 	Short: "Retrieve the list of chats",
 	Long:  `Retrieve the list of chats (1-1 or groups) currently opened`,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("getChats called")
-	},
+	Run:   getChats,
+}
+
+func getChats(cmd *cobra.Command, args []string) {
+	fmt.Println("getChats called")
+	wc, err := client.NewClient()
+	if err != nil {
+		log.Errorf("Error while initializing Whatsapp client: %s", err)
+	}
+	chats := wc.GetChats()
+	log.Debugf("Chats is %v", chats)
+	for k, v := range chats {
+		fmt.Printf("%s: %s\n", k, v.Name)
+	}
 }
 
 func init() {

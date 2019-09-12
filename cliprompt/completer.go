@@ -10,6 +10,7 @@ import (
 
 type Completer struct {
 	Client *wc.WhatsappClient
+	chats  []string
 }
 
 func NewCompleter() *Completer {

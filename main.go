@@ -6,7 +6,6 @@ import (
 )
 
 func initLogs() {
-	log.SetLevel(log.TraceLevel)
 	log.SetFormatter(&log.TextFormatter{})
 	log.SetReportCaller(true)
 }

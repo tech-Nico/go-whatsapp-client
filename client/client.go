@@ -18,6 +18,12 @@ type WhatsappClient struct {
 	Session  whatsapp.Session
 	wac      whatsapp.Conn
 	contacts *binary.Node
+	chats    map[string]Chat
+}
+
+type Chat struct {
+	Name    string
+	IsGroup bool
 }
 
 type waHandler struct {
@@ -106,6 +112,8 @@ If a session is stored on disk but the session is expired, then ask to login
 func NewClient() (WhatsappClient, error) {
 	//create new WhatsApp connection
 	wac, err := whatsapp.NewConn(5 * time.Second)
+
+	var chats = make(map[string]Chat, 0)
 	var newClient = WhatsappClient{
 		wac: *wac,
 	}
@@ -127,10 +135,15 @@ func NewClient() (WhatsappClient, error) {
 	fmt.Println("Waiting for chats info...")
 	<-time.After(5 * time.Second)
 
-	for chat := range handler.chats {
-		log.Tracef("Chat: %v: %v", chat, newClient.GetContactName(chat))
+	for chatJid := range handler.chats {
+		contactName := newClient.GetContactName(chatJid)
+		log.Tracef("Chat: %v: %v", chatJid, contactName)
+		newChat := Chat{
+			Name: contactName,
+		}
+		chats[chatJid] = newChat
 	}
-
+	newClient.chats = chats
 	log.Trace("get contacts...")
 
 	if err != nil {
@@ -153,6 +166,10 @@ func NewClient() (WhatsappClient, error) {
 // GetContactName returns the name of a contact or the name of a group given its jid number
 func (c *WhatsappClient) GetContactName(jid string) string {
 	return c.wac.Store.Contacts[jid].Name
+}
+
+func (c *WhatsappClient) GetChats() map[string]Chat {
+	return c.chats
 }
 
 //Disconnect terminates whatsapp connection gracefully
