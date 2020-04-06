@@ -10,12 +10,15 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var loginLogger = log.WithFields(log.Fields{"event": "login", "config_file": getConfigFileName()})
-
 // WhatsappClient This is the client object that will allow you to do all necessary actions with your whatsapp account
 type WhatsappClient struct {
 	Session whatsapp.Session
 	wac     whatsapp.Conn
+	chats   map[string]Chat
+}
+
+type Chat struct {
+	Name string
 }
 
 type waHandler struct {
@@ -49,8 +52,11 @@ func newLogin(wac *whatsapp.Conn) error {
 		log.Trace("Waiting for qr code to be scanned..")
 		go func() {
 			terminal := qrcodeTerminal.New()
+			log.Infof("Got new terminal: %v", terminal)
 			terminal.Get(<-qr).Print()
 		}()
+		log.Trace("Got QR code")
+		log.Trace("Attempting login...")
 		session, err = wac.Login(qr)
 
 		if err != nil {
@@ -103,48 +109,49 @@ If a session is stored on disk but the session is expired, then ask to login
 */
 func NewClient() (WhatsappClient, error) {
 	//create new WhatsApp connection
-	wac, err := whatsapp.NewConn(5 * time.Second)
+	pwac, err := whatsapp.NewConn(5 * time.Second)
 
 	var newClient = WhatsappClient{
-		wac: *wac,
+		wac: *pwac,
 	}
-	wac.SetClientName("Command Line Whatsapp Client", "CLI Whatsapp")
+	pwac.SetClientName("Command Line Whatsapp Client", "CLI Whatsapp")
+	pwac.SetClientVersion(0, 4, 1307)
 	if err != nil {
 		log.WithField("error", err).Fatal("error creating connection to Whatsapp\n", err)
 	}
 
 	//Add handler
-	handler := &waHandler{wac, make(map[string]*proto.WebMessageInfo)}
-	wac.AddHandler(handler)
+	handler := &waHandler{pwac, make(map[string]*proto.WebMessageInfo)}
+	pwac.AddHandler(handler)
 
 	//login or restore
-	if err := newLogin(wac); err != nil {
+	if err := newLogin(pwac); err != nil {
 		log.WithField("error", err).Fatal("error logging in\n")
 	}
 
-	// wait while chat jids are acquired through incoming initial messages
+	//wait while chat jids are acquired through incoming initial messages
 	fmt.Println("Waiting for chats info...")
 	<-time.After(5 * time.Second)
 
-	// for chatJid := range handler.chats {
-	// 	contactName := newClient.GetContactName(chatJid)
-	// 	webMessageInfo := handler.chats[chatJid]
-	// 	log.Tracef("Chat: %v: %v", chatJid, contactName)
-	// 	newChat := Chat{
-	// 		Name: webMessageInfo.GetMessage().GetContactMessage().GetDisplayName(),
-	// 	}
-	// 	chats[chatJid] = newChat
-	// }
-	// newClient.chats = chats
-	// log.Trace("get contacts...")
-
-	if err != nil {
-		log.WithField("error", err).Error("error while retrieving contacts")
+	chats := make(map[string]Chat)
+	for chatJid := range handler.chats {
+		contactName := newClient.GetContactName(chatJid)
+		//webMessageInfo := handler.chats[chatJid]
+		log.Tracef("Chat: %v: %v", chatJid, contactName)
+		newChat := Chat{
+			//Name: webMessageInfo.GetMessage().GetContactMessage().GetDisplayName(),
+			Name: contactName,
+		}
+		chats[chatJid] = newChat
+	}
+	newClient.chats = chats
+	for jit, chat := range chats {
+		log.Debugf("Jid: %s, Name: %s", jit, chat)
 	}
 
 	//Disconnect safely
 	log.Info("Shutting down now.")
-	session, err := wac.Disconnect()
+	session, err := pwac.Disconnect()
 	if err != nil {
 		log.WithField("error", err).Fatal("error disconnecting\n")
 	}
@@ -152,6 +159,36 @@ func NewClient() (WhatsappClient, error) {
 	log.WithField("session", session).Debug("successfully disconnected from whatsapp")
 
 	return newClient, nil
+
+}
+
+//RestoreSession Create a new WhatsappClient using the session stored on disk.
+//If the session is expired this function won't attempt to login but it will fail and return an error
+func RestoreSession() (WhatsappClient, error) {
+	//create new WhatsApp connection
+	wac, err := whatsapp.NewConn(5 * time.Second)
+	if err != nil {
+		log.WithField("error", err).Fatal("error creating connection")
+	}
+
+	//load saved session
+	session, err := readSession()
+	if err != nil {
+		log.WithField("error", err).Fatal("Error while reading the session")
+	}
+
+	//restore session
+	session, err = wac.RestoreWithSession(session)
+	if err != nil {
+		log.WithField("error", err).Fatal("Error while restoring the session")
+	}
+
+	wc := WhatsappClient{
+		Session: session,
+		wac:     *wac,
+	}
+
+	return wc, nil
 
 }
 
@@ -179,6 +216,9 @@ func (c *WhatsappClient) Disconnect() error {
 	}
 
 	log.WithField("session", session).Debug("successfully disconnected from whatsapp")
-
+	err = deleteSession()
+	if err != nil {
+		return err
+	}
 	return nil
 }

@@ -16,11 +16,7 @@ limitations under the License.
 package cmd
 
 import (
-	"fmt"
-
-	"sort"
-	"strconv"
-	"time"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -28,54 +24,41 @@ import (
 )
 
 // getChatsCmd represents the getChats command
-var getChatsCmd = &cobra.Command{
-	Use:   "chats",
+var getContactsCmd = &cobra.Command{
+	Use:   "contacts",
 	Short: "Retrieve the list of chats",
 	Long:  `Retrieve the list of chats (1-1 or groups) currently opened`,
-	Run:   getChats,
+	Run:   getContacts,
 }
 
-func getChats(cmd *cobra.Command, args []string) {
-	log.Debug("getChats called")
+func getContacts(cmd *cobra.Command, args []string) {
+	log.Debug("getContacts called")
 	wc, err := client.NewClient()
 	if err != nil {
 		log.Errorf("Error while initializing Whatsapp client: %s", err)
 	}
-	chats := wc.GetChats()
-	type orderedChat struct {
-		Name string
-		Time int64
-	}
-	ordered := make([]orderedChat, 0)
-
-	log.Debugf("Chats is %v", chats)
-	for _, v := range chats {
-
-		time, err := strconv.ParseInt(v.LastMessageTime, 10, 64)
-		if err != nil {
-			log.Warnf("Error while converting a timestamp to integer: %s. Skipping this chat...", err)
-			continue
+	contacts := wc.GetContacts()
+	/*	type orderedChat struct {
+			Name string
+			Time int64
 		}
+		ordered := make([]orderedChat, 0)
+	*/
 
-		newChat := orderedChat{
-			Name: v.Name,
-			Time: time,
+	for k, v := range contacts {
+		name := v.Name
+		if name == "" {
+			name = strings.TrimSuffix(k, "@s.whatsapp.net")
 		}
+		log.Infof("%s", name)
 
-		ordered = append(ordered, newChat)
 	}
+	//I should put all the anonymous one first and then the rest order by v.Name
 
-	sort.Slice(ordered, func(i, j int) bool {
-		return ordered[i].Time < ordered[j].Time
-	})
-
-	for k := range ordered {
-		fmt.Printf("%s - %s\n", time.Unix(ordered[k].Time, 0), ordered[k].Name)
-	}
 }
 
 func init() {
-	getCmd.AddCommand(getChatsCmd)
+	getCmd.AddCommand(getContactsCmd)
 
 	// Here you will define your flags and configuration settings.
 

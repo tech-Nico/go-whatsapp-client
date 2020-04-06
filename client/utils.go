@@ -49,7 +49,7 @@ func createConfigFileIfNeeded() (*os.File, error) {
 	if _, err := os.Stat(configFileName); os.IsNotExist(err) {
 		err := os.MkdirAll(dirStr, os.ModePerm)
 		if err != nil {
-			loginLogger.Errorf("Error while creating folder '%s' : %s", dirStr, err)
+			log.Errorf("Error while creating folder '%s' : %s", dirStr, err)
 		}
 
 		file, err = os.Create(configFileName)
@@ -78,7 +78,7 @@ func createConfigFileIfNeeded() (*os.File, error) {
 }
 
 func writeSession(session whatsapp.Session) error {
-	loginLogger.Tracef("Writing session %v to the config file...", session)
+	log.Tracef("Writing session %v to the config file...", session)
 	file, err := createConfigFileIfNeeded()
 	if err != nil {
 		return err
@@ -94,18 +94,18 @@ func writeSession(session whatsapp.Session) error {
 }
 
 func readSession() (whatsapp.Session, error) {
-	loginLogger.Debugf("Reading session from file...")
+	log.Debugf("Reading session from file...")
 	session := whatsapp.Session{}
 	file, err := os.Open(getConfigFileName())
 	if err != nil {
-		loginLogger.Warnf("Error while opening config file: %v", err)
+		log.Warnf("Error while opening config file: %v", err)
 		return session, err
 	}
 	defer file.Close()
 	decoder := gob.NewDecoder(file)
 	err = decoder.Decode(&session)
 	if err != nil {
-		loginLogger.Warnf("Error while decoding session from file: %v", err)
+		log.Warnf("Error while decoding session from file: %v", err)
 		return session, err
 	}
 	return session, nil
