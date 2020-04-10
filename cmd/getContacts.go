@@ -16,12 +16,16 @@ limitations under the License.
 package cmd
 
 import (
+	"fmt"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/tech-nico/whatsapp-cli/client"
 )
+
+//Whether or not to display all contacts (including anonymous)
+var all bool
 
 // getChatsCmd represents the getChats command
 var getContactsCmd = &cobra.Command{
@@ -37,7 +41,12 @@ func getContacts(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Errorf("Error while initializing Whatsapp client: %s", err)
 	}
-	contacts := wc.GetContacts()
+	contacts, err := wc.GetContacts()
+	if err != nil {
+		log.Fatalf("Error while retriving contacts: %s", err)
+	}
+
+	log.Tracef("Contacts: %v", contacts)
 	/*	type orderedChat struct {
 			Name string
 			Time int64
@@ -45,28 +54,45 @@ func getContacts(cmd *cobra.Command, args []string) {
 		ordered := make([]orderedChat, 0)
 	*/
 
-	for k, v := range contacts {
-		name := v.Name
-		if name == "" {
-			name = strings.TrimSuffix(k, "@s.whatsapp.net")
-		}
-		log.Infof("%s", name)
+	if len(contacts) == 0 {
+		fmt.Print("No contacts found")
+	} else {
+		noName := make([]string, 0)
+		storedContacts := make([]string, 0)
 
+		for k, v := range contacts {
+			if strings.TrimSpace(v.Name) == "" {
+				noName = append(noName, strings.TrimSuffix(k, "@s.whatsapp.net"))
+			} else {
+				storedContacts = append(storedContacts, v.Name+" ("+v.Short+")")
+			}
+
+		}
+
+		//Display contacts with no name (just the phone number)
+		if all {
+			for k := range noName {
+				fmt.Printf("%s\n", noName[k])
+			}
+		}
+		//Display stored contacts
+		for k := range storedContacts {
+			fmt.Printf("%s\n", storedContacts[k])
+		}
 	}
-	//I should put all the anonymous one first and then the rest order by v.Name
 
 }
 
 func init() {
 	getCmd.AddCommand(getContactsCmd)
-
+	getContactsCmd.Flags().BoolVarP(&all, "all", "a", false, "Display all contacts, including those not stored in your contact list")
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:
-	// getChatsCmd.PersistentFlags().String("foo", "", "A help for foo")
+	// getContactsCmd.PersistentFlags().String("foo", "", "A help for foo")
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	// getChatsCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// getContactsCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

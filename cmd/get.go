@@ -16,8 +16,7 @@ limitations under the License.
 package cmd
 
 import (
-	"fmt"
-
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -27,7 +26,7 @@ var getCmd = &cobra.Command{
 	Short: "Get something from Whatsapp",
 	Long:  `Get various resources from Whatsapp like chats, latest messages in a chat, etc..`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("get called")
+		log.Error("Specify something to get: chats, contacts, history..")
 	},
 }
 

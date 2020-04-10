@@ -19,6 +19,7 @@ type WhatsappClient struct {
 
 type Chat struct {
 	Name string
+	Jid  string
 }
 
 type waHandler struct {
@@ -111,9 +112,6 @@ func NewClient() (WhatsappClient, error) {
 	//create new WhatsApp connection
 	pwac, err := whatsapp.NewConn(5 * time.Second)
 
-	var newClient = WhatsappClient{
-		wac: *pwac,
-	}
 	pwac.SetClientName("Command Line Whatsapp Client", "CLI Whatsapp")
 	pwac.SetClientVersion(0, 4, 1307)
 	if err != nil {
@@ -129,35 +127,47 @@ func NewClient() (WhatsappClient, error) {
 		log.WithField("error", err).Fatal("error logging in\n")
 	}
 
-	//wait while chat jids are acquired through incoming initial messages
-	fmt.Println("Waiting for chats info...")
-	<-time.After(5 * time.Second)
-
-	chats := make(map[string]Chat)
-	for chatJid := range handler.chats {
-		contactName := newClient.GetContactName(chatJid)
-		//webMessageInfo := handler.chats[chatJid]
-		log.Tracef("Chat: %v: %v", chatJid, contactName)
-		newChat := Chat{
-			//Name: webMessageInfo.GetMessage().GetContactMessage().GetDisplayName(),
-			Name: contactName,
-		}
-		chats[chatJid] = newChat
+	var newClient = WhatsappClient{
+		wac: *pwac,
 	}
+
+	chats := readChatsFromFile()
+
+	if chats == nil {
+		//wait while chat jids are acquired through incoming initial messages
+		log.Info("Waiting for chats info...")
+		<-time.After(5 * time.Second)
+
+		chats := make(map[string]Chat)
+		for chatJid := range handler.chats {
+			contactName := newClient.GetContactName(chatJid)
+			//webMessageInfo := handler.chats[chatJid]
+			log.Tracef("Chat: %v: %v", chatJid, contactName)
+			newChat := Chat{
+				//Name: webMessageInfo.GetMessage().GetContactMessage().GetDisplayName(),
+				Name: contactName,
+				Jid:  chatJid,
+			}
+			chats[chatJid] = newChat
+		}
+		//store chats so we don't have to query all the times
+		storeChatsToFile(chats)
+	}
+
 	newClient.chats = chats
 	for jit, chat := range chats {
 		log.Debugf("Jid: %s, Name: %s", jit, chat)
 	}
 
 	//Disconnect safely
-	log.Info("Shutting down now.")
-	session, err := pwac.Disconnect()
-	if err != nil {
-		log.WithField("error", err).Fatal("error disconnecting\n")
-	}
+	/*	log.Debug("Shutting down now.")
+		session, err := pwac.Disconnect()
+		if err != nil {
+			log.WithField("error", err).Fatal("error disconnecting\n")
+		}
 
-	log.WithField("session", session).Debug("successfully disconnected from whatsapp")
-
+		log.WithField("session", session).Debug("successfully disconnected from whatsapp")
+	*/
 	return newClient, nil
 
 }
@@ -167,6 +177,7 @@ func NewClient() (WhatsappClient, error) {
 func RestoreSession() (WhatsappClient, error) {
 	//create new WhatsApp connection
 	wac, err := whatsapp.NewConn(5 * time.Second)
+
 	if err != nil {
 		log.WithField("error", err).Fatal("error creating connection")
 	}
@@ -201,8 +212,15 @@ func (c *WhatsappClient) GetChats() map[string]whatsapp.Chat {
 	return c.wac.Store.Chats
 }
 
-func (c *WhatsappClient) GetContacts() map[string]whatsapp.Contact {
-	return c.wac.Store.Contacts
+func (c *WhatsappClient) GetContacts() (map[string]whatsapp.Contact, error) {
+	log.Debug("In WhatsappClient.GetContacts")
+	_, err := c.wac.Contacts()
+	if err != nil {
+		log.Errorf("Error while retriving contacts: %s", err)
+		return nil, err
+	}
+
+	return c.wac.Store.Contacts, nil
 }
 
 //Disconnect terminates whatsapp connection gracefully

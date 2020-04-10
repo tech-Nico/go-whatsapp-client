@@ -22,10 +22,10 @@ import (
 )
 
 // getCmd represents the get command
-var historyCmd = &cobra.Command{
+var getHistoryCmd = &cobra.Command{
 	Use:   "history",
 	Short: "Retrieve the chat history",
-	Long:  `Retrieve the full list of chats`,
+	Long:  `Retrieve all chat histories or a specific chat history. Defaults to single history. Specify -a to get all histories`,
 	Run: func(cmd *cobra.Command, args []string) {
 		log.Debug("Call to historyCmd")
 		client, err := client.NewClient()
@@ -39,15 +39,15 @@ var historyCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(historyCmd)
+	rootCmd.AddCommand(getHistoryCmd)
 
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:
-	// getCmd.PersistentFlags().String("foo", "", "A help for foo")
+	// getHistoryCmd.PersistentFlags().String("foo", "", "A help for foo")
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	// getCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// getHistoryCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
