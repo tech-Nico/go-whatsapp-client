@@ -18,7 +18,7 @@ func Executor(s string) {
 		os.Exit(0)
 		return
 	}
-	log.Debugf("Executing %s", s)
+	log.Infof("Executing %s", s)
 	// cmd := exec.Command("/bin/sh", "-c", "go-whatsapp-client "+s)
 	cmd := exec.Command("/bin/sh", "-c", "./whatsapp-cli "+s)
 	cmd.Stdin = os.Stdin

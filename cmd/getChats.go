@@ -20,7 +20,6 @@ import (
 
 	"sort"
 	"strconv"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -41,7 +40,10 @@ func getChats(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Errorf("Error while initializing Whatsapp client: %s", err)
 	}
-	chats := wc.GetChats()
+	chats, err := wc.GetChats()
+	if err != nil {
+		log.Fatalf("Error while retrieving chats: %s", err)
+	}
 	type orderedChat struct {
 		Name string
 		Time int64
@@ -70,7 +72,8 @@ func getChats(cmd *cobra.Command, args []string) {
 	})
 
 	for k := range ordered {
-		fmt.Printf("%s - %s\n", time.Unix(ordered[k].Time, 0), ordered[k].Name)
+		//time.Unix(ordered[k].Time, 0)
+		fmt.Printf("%s\n", ordered[k].Name)
 	}
 }
 

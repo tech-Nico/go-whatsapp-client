@@ -208,10 +208,18 @@ func (c *WhatsappClient) GetContactName(jid string) string {
 	return c.wac.Store.Contacts[jid].Name
 }
 
-func (c *WhatsappClient) GetChats() map[string]whatsapp.Chat {
-	return c.wac.Store.Chats
+func (c *WhatsappClient) GetChats() (map[string]whatsapp.Chat, error) {
+	log.Debug("In WhastappClient.GetChats")
+	_, err := c.wac.Chats()
+
+	if err != nil {
+		log.Errorf("Error while retriving chats: %s", err)
+		return nil, err
+	}
+	return c.wac.Store.Chats, nil
 }
 
+//GetContacts return the list of contacts known by Whatsapp
 func (c *WhatsappClient) GetContacts() (map[string]whatsapp.Contact, error) {
 	log.Debug("In WhatsappClient.GetContacts")
 	_, err := c.wac.Contacts()

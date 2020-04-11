@@ -39,7 +39,7 @@ var getHistoryCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(getHistoryCmd)
+	getCmd.AddCommand(getHistoryCmd)
 
 	// Here you will define your flags and configuration settings.
 
