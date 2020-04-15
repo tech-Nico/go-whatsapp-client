@@ -12,9 +12,10 @@ import (
 
 // WhatsappClient This is the client object that will allow you to do all necessary actions with your whatsapp account
 type WhatsappClient struct {
-	Session whatsapp.Session
-	wac     whatsapp.Conn
-	chats   map[string]Chat
+	Session  whatsapp.Session
+	wac      whatsapp.Conn
+	chats    map[string]Chat
+	contacts map[string]whatsapp.Contact
 }
 
 type Chat struct {

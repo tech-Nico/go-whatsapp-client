@@ -79,6 +79,7 @@ func (c *Completer) handleGet(doc go_prompt.Document) []go_prompt.Suggest {
 			{Text: "chats", Description: "Retrieve all existing chats"},
 			{Text: "history", Description: "Get a chat history"},
 			{Text: "contacts", Description: "Get the list of contacts"},
+			{Text: "chat", Description: "Start chatting with someone or an existing group"},
 		}
 		filtered := go_prompt.FilterHasPrefix(suggestions, cmd, true)
 		if len(filtered) > 0 {
@@ -90,12 +91,10 @@ func (c *Completer) handleGet(doc go_prompt.Document) []go_prompt.Suggest {
 }
 
 func (c *Completer) handleHistory(doc go_prompt.Document) []go_prompt.Suggest {
-	log.Info("Handling history")
-
 	suggestions := []go_prompt.Suggest{}
-	for jid, chat := range c.Chats {
+	for _, chat := range c.Chats {
 		suggestion := go_prompt.Suggest{
-			Text: chat.Name, Description: jid,
+			Text: chat.Name,
 		}
 		suggestions = append(suggestions, suggestion)
 	}
@@ -108,6 +107,10 @@ func (c *Completer) handleHistory(doc go_prompt.Document) []go_prompt.Suggest {
 	return suggestions
 }
 
+func (c *Completer) handleChat(doc go_prompt.Document) []go_prompt.Suggest {
+	return []go_prompt.Suggest{}
+}
+
 //CompleteCommand complete a command
 func (c *Completer) CompleteCommand(doc go_prompt.Document) []go_prompt.Suggest {
 	p := doc.TextBeforeCursor()
@@ -117,10 +120,11 @@ func (c *Completer) CompleteCommand(doc go_prompt.Document) []go_prompt.Suggest 
 	}
 
 	cmd := c.getCommand(p)
-	log.Infof("The command: %s", cmd)
 	switch cmd {
 	case "get":
 		return c.handleGet(doc)
+	case "chat":
+		return c.handleChat(doc)
 	default:
 		return []prompt.Suggest{}
 	}

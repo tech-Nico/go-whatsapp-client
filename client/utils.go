@@ -165,3 +165,29 @@ func readChatsFromFile() map[string]Chat {
 	}
 	return chats
 }
+
+func formatDate(timestamp uint64) string {
+	msgTimestamp := time.Unix(int64(timestamp), 0)
+	msgDateYear, msgDateMonth, msgDateDay := msgTimestamp.Date()
+	msgDate := time.Date(msgDateYear, msgDateMonth, msgDateDay, 0, 0, 0, 0, time.Local)
+
+	nowYear, nowMonth, nowDay := time.Now().Date()
+	nowDate := time.Date(nowYear, nowMonth, nowDay, 0, 0, 0, 0, time.Local)
+
+	dateFmt := "-"
+	dateDifference := nowDate.Sub(msgDate).Hours() / 24
+
+	switch dateDifference {
+	case 0:
+		dateFmt = msgTimestamp.Format("(Today) 3:04:05pm")
+	case 1:
+		dateFmt = msgTimestamp.Format("(Yesterday) 3:04:05pm")
+	case 2, 3, 4:
+		dateFmt = msgTimestamp.Format("(" + msgDate.Weekday().String() + ") 3:04:05pm")
+	default:
+		dateFmt = msgTimestamp.Format("2006-01-02  3:04:05pm")
+
+	}
+
+	return dateFmt
+}
