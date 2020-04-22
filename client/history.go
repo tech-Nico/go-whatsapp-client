@@ -23,7 +23,7 @@ func (h *historyHandler) HandleTextMessage(message whatsapp.TextMessage) {
 	authorID := "-"
 	screenName := "-"
 	if message.Info.FromMe {
-		authorID = h.c.wac.Info.Wid
+		authorID = h.c.WaC.Info.Wid
 		screenName = "Me"
 	} else {
 		if message.Info.Source.Participant != nil {
@@ -40,7 +40,7 @@ func (h *historyHandler) HandleTextMessage(message whatsapp.TextMessage) {
 			}
 		}
 	}
-	dateFmt := formatDate(message.Info.Timestamp)
+	dateFmt := FormatDate(message.Info.Timestamp)
 	h.messages = append(h.messages, fmt.Sprintf("\n%s (%s): \n%s\n", dateFmt, screenName, message.Text))
 
 }
@@ -70,7 +70,7 @@ func (c *WhatsappClient) GetHistory(jid string, count int) []string {
 	if count <= 0 {
 		count = 100
 	}
-	c.wac.LoadChatMessages(jid, count, "", true, false, handler)
+	c.WaC.LoadChatMessages(jid, count, "", true, false, handler)
 	//c.wac.LoadFullChatHistory(jid, 300, time.Millisecond*300, handler)
 	return handler.messages
 }

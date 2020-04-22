@@ -17,7 +17,11 @@ package cmd
 
 import (
 	"fmt"
+	"sort"
 	"strings"
+
+	"github.com/Rhymen/go-whatsapp"
+	"github.com/Rhymen/go-whatsapp/binary/proto"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -26,18 +30,30 @@ import (
 
 //Whether or not to display all contacts (including anonymous)
 var all bool
+var searchStr string
 
 // getChatsCmd represents the getChats command
 var getContactsCmd = &cobra.Command{
 	Use:   "contacts",
-	Short: "Retrieve the list of chats",
-	Long:  `Retrieve the list of chats (1-1 or groups) currently opened`,
-	Run:   getContacts,
+	Short: "Retrieve the list of contacts",
+	Long: `Retrieve the list of contacts known by whatsapp. Display the contact ID (number@s.whatsapp.net) if the contact name is empty.
+	Use -s if you only know some part of the name and you want to search for a contact containing that part`,
+	Run: getContacts,
 }
 
-func getContacts(cmd *cobra.Command, args []string) {
-	log.Debug("getContacts called")
-	wc, err := client.NewClient()
+func handleContactsRawMessage(msg *proto.WebMessageInfo) {
+	log.Debug("handleContactsRawMessage: Handling raw message in getContacts. Doing nothing...")
+	log.Trace(msg)
+}
+
+func handleContactsTextMessage(msg whatsapp.TextMessage) {
+	log.Debug("handleContactsTextMessage: Handling text message in getContacts. Doing nothing...")
+	log.Trace(msg)
+}
+
+func goContacts(ch chan interface{}) {
+
+	wc, err := client.NewClient(ch)
 	if err != nil {
 		log.Errorf("Error while initializing Whatsapp client: %s", err)
 	}
@@ -47,15 +63,14 @@ func getContacts(cmd *cobra.Command, args []string) {
 	}
 
 	log.Tracef("Contacts: %v", contacts)
-	/*	type orderedChat struct {
-			Name string
-			Time int64
-		}
-		ordered := make([]orderedChat, 0)
-	*/
 
+	ch <- contacts
+}
+
+func contactsToStringSlice(contacts map[string]whatsapp.Contact) []string {
+	returnContacts := []string{}
 	if len(contacts) == 0 {
-		fmt.Print("No contacts found")
+		log.Info("No contacts found")
 	} else {
 		noName := make([]string, 0)
 		storedContacts := make([]string, 0)
@@ -69,16 +84,65 @@ func getContacts(cmd *cobra.Command, args []string) {
 
 		}
 
-		//Display contacts with no name (just the phone number)
-		if all {
-			for k := range noName {
-				fmt.Printf("%s\n", noName[k])
+		if searchStr != "" {
+			returnContacts = append(noName, storedContacts...)
+			returnContacts = FilterByContain(returnContacts, searchStr)
+		} else {
+			//order the storedContacts alphabetically
+			sort.Strings(storedContacts)
+
+			returnContacts = storedContacts
+
+			//Display contacts with no name (just the phone number)
+			if all {
+				returnContacts = append(noName, storedContacts...)
 			}
 		}
-		//Display stored contacts
-		for k := range storedContacts {
-			fmt.Printf("%s\n", storedContacts[k])
+	}
+
+	return returnContacts
+}
+
+func doGetContacts() map[string]whatsapp.Contact {
+	ch := make(chan interface{})
+	contacts := make(map[string]whatsapp.Contact, 0)
+	go goContacts(ch)
+ForLoop:
+	for {
+		select {
+		case msg := <-ch:
+			switch msg := msg.(type) {
+			case *proto.WebMessageInfo:
+				handleContactsRawMessage(msg)
+			case whatsapp.TextMessage:
+				handleContactsTextMessage(msg)
+			case map[string]whatsapp.Contact:
+				contacts = msg
+				break ForLoop
+			default:
+				fmt.Printf("Unknown message type %T: %v", msg, msg)
+			}
 		}
+	}
+
+	return contacts
+}
+
+func getContacts(cmd *cobra.Command, args []string) {
+	log.Debug("getContacts called")
+	contacts := contactsToStringSlice(doGetContacts())
+	if searchStr != "" {
+		if len(contacts) != 0 {
+			fmt.Printf("\nMatches found for '%s':\n\n%s\n", searchStr, strings.Join(contacts, "\n"))
+		} else {
+			fmt.Printf("No contacts containing '%s' was found", searchStr)
+		}
+	} else {
+		//Display stored contacts
+		for k := range contacts {
+			fmt.Printf("%s\n", contacts[k])
+		}
+
 	}
 
 }
@@ -86,6 +150,7 @@ func getContacts(cmd *cobra.Command, args []string) {
 func init() {
 	getCmd.AddCommand(getContactsCmd)
 	getContactsCmd.Flags().BoolVarP(&all, "all", "a", false, "Display all contacts, including those not stored in your contact list")
+	getContactsCmd.Flags().StringVarP(&searchStr, "search", "s", "", "Search for a contact resembling the given string. Ex: -s twl would return cartwheel")
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command

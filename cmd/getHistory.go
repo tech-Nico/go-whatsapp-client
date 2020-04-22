@@ -20,12 +20,78 @@ import (
 	"strings"
 
 	"github.com/Rhymen/go-whatsapp"
+	"github.com/Rhymen/go-whatsapp/binary/proto"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/tech-nico/whatsapp-cli/client"
 )
 
 var count int
+
+func handleHistoryRawMessage(msg *proto.WebMessageInfo) {
+	log.Debug("handleHistoryRawMessage: Handling raw message in getHistory")
+	log.Trace(msg)
+}
+
+func handleHistoryTextMessage(msg whatsapp.TextMessage) {
+	log.Debug("handleHistoryRawMessage: Handling text message in getHistory")
+	log.Trace(msg)
+}
+
+func doHistory(chat string, ch chan interface{}) {
+	foundChats := make(map[string]whatsapp.Chat)
+	client, err := client.NewClient(ch)
+
+	if err != nil {
+		log.Fatalf("Error while initiating a new Whatsapp Client: %s", err)
+	}
+
+	chats, err := client.GetChats()
+	if err != nil {
+		log.Fatalf("Error while retrieving chats: %s", err)
+	}
+
+	//Search all the chats with the given name. Since you might have two chats with the same name, ask which one to use
+	//in case there are two or more with the same name
+	for k, v := range chats {
+		if strings.EqualFold(strings.TrimSpace(v.Name), strings.TrimSpace(chat)) {
+			foundChats[k] = v
+		}
+	}
+
+	selectedJid := ""
+	if len(foundChats) == 0 {
+		log.Fatalf("There is no such chat '%s'", chat)
+	}
+
+	if len(foundChats) == 1 {
+		for k, _ := range foundChats {
+			selectedJid = k
+		}
+	}
+
+	if len(foundChats) > 1 {
+
+		fmt.Print("Found the following chats: ")
+		for k, v := range foundChats {
+			fmt.Printf("[%s] - %s", k, v.Name)
+		}
+		fmt.Print("Type the Jid to display the chats for")
+		fmt.Scan("%s", &selectedJid)
+
+	}
+
+	log.Infof("Get history for jid %s", selectedJid)
+	history := client.GetHistory(selectedJid, count)
+
+	for k := range history {
+		fmt.Printf("%s", history[k])
+	}
+
+	log.Tracef("Logged in to Whatsapp. Session: %v", client.Session)
+
+	ch <- true
+}
 
 // getCmd represents the get command
 var getHistoryCmd = &cobra.Command{
@@ -38,65 +104,32 @@ var getHistoryCmd = &cobra.Command{
 			log.Fatal("Please specify a chat name")
 		}
 
-		chat := ""
-		for k := range args {
-			chat = chat + args[k] + " "
-		}
-
-		chat = strings.TrimRight(chat, " ")
+		chat := getNameFromArgs(args)
 
 		log.Infof("Getting history for chat %s", chat)
-		foundChats := make(map[string]whatsapp.Chat)
 
-		client, err := client.NewClient()
-		if err != nil {
-			log.Fatalf("Error while initiating a new Whatsapp Client: %s", err)
-		}
+		ch := make(chan interface{})
+		go doHistory(chat, ch)
 
-		chats, err := client.GetChats()
-		if err != nil {
-			log.Fatalf("Error while retrieving chats: %s", err)
-		}
+	ForLoop:
+		for {
+			select {
+			case msg := <-ch:
+				switch msg := msg.(type) {
+				case *proto.WebMessageInfo:
+					handleHistoryRawMessage(msg)
+				case whatsapp.TextMessage:
+					handleHistoryTextMessage(msg)
+				case bool:
+					if msg {
+						break ForLoop
+					}
+				default:
+					fmt.Printf("Unknown message type: %v", msg)
+				}
 
-		//Search all the chats with the given name. Since you might have two chats with the same name, ask which one to use
-		//in case there are two or more with the same name
-		for k, v := range chats {
-			if strings.EqualFold(strings.TrimSpace(v.Name), strings.TrimSpace(chat)) {
-				foundChats[k] = v
 			}
 		}
-
-		selectedJid := ""
-		if len(foundChats) == 0 {
-			log.Fatalf("There is no such chat '%s'", chat)
-		}
-
-		if len(foundChats) == 1 {
-			for k, _ := range foundChats {
-				selectedJid = k
-			}
-		}
-
-		if len(foundChats) > 1 {
-
-			fmt.Print("Found the following chats: ")
-			for k, v := range foundChats {
-				fmt.Printf("[%s] - %s", k, v.Name)
-			}
-			fmt.Print("Type the Jid to display the chats for")
-			fmt.Scan("%s", &selectedJid)
-
-		}
-
-		log.Infof("Get history for jid %s", selectedJid)
-		history := client.GetHistory(selectedJid, count)
-
-		for k := range history {
-			fmt.Printf("%s", history[k])
-		}
-
-		log.Tracef("Logged in to Whatsapp. Session: %v", client.Session)
-
 	},
 }
 

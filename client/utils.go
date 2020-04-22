@@ -83,7 +83,7 @@ func createFileIfNeeded(fileName string) (*os.File, error) {
 	return file, err
 }
 
-func writeSession(session whatsapp.Session) error {
+func WriteSession(session whatsapp.Session) error {
 	log.Tracef("Writing session %v to the config file...", session)
 	file, err := createFileIfNeeded(getConfigFileName())
 	if err != nil {
@@ -99,7 +99,7 @@ func writeSession(session whatsapp.Session) error {
 	return nil
 }
 
-func readSession() (whatsapp.Session, error) {
+func ReadSession() (whatsapp.Session, error) {
 	log.Debugf("Reading session from file...")
 	session := whatsapp.Session{}
 	file, err := os.Open(getConfigFileName())
@@ -166,7 +166,7 @@ func readChatsFromFile() map[string]Chat {
 	return chats
 }
 
-func formatDate(timestamp uint64) string {
+func FormatDate(timestamp uint64) string {
 	msgTimestamp := time.Unix(int64(timestamp), 0)
 	msgDateYear, msgDateMonth, msgDateDay := msgTimestamp.Date()
 	msgDate := time.Date(msgDateYear, msgDateMonth, msgDateDay, 0, 0, 0, 0, time.Local)

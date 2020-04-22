@@ -18,7 +18,6 @@ package cmd
 import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/tech-nico/whatsapp-cli/client"
 )
 
 // getCmd represents the get command
@@ -28,13 +27,14 @@ var loginCmd = &cobra.Command{
 	Long:  `Login to whatsapp so that you can access your chats, send messages, etc..`,
 	Run: func(cmd *cobra.Command, args []string) {
 		log.Debug("Call to loginCmd")
-		client, err := client.NewClient()
-		if err != nil {
-			log.Errorf("Error while logging in to Whatsapp: %s", err)
-		}
+		/*		client, err := client.NewClient()
+						if err != nil {
+							log.Errorf("Error while logging in to Whatsapp: %s", err)
+						}
 
-		log.Tracef("Logged in to Whatsapp. Session: %v", client.Session)
 
+				log.Tracef("Logged in to Whatsapp. Session: %v", client.Session)
+		*/
 	},
 }
 

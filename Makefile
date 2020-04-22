@@ -32,7 +32,7 @@ test:  ## Run the tests.
 
 .PHONY: build
 build: main.go  ## Build a binary.
-	$(GO) build -ldflags "$(LDFLAGS)"
+	$(GO) build -race -ldflags "$(LDFLAGS)"
 
 .PHONY: code-gen
 code-gen: ## Generate source codes.

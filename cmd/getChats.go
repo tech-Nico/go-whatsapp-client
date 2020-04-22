@@ -17,14 +17,19 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"sort"
 	"strconv"
 
+	"github.com/Rhymen/go-whatsapp"
+	"github.com/Rhymen/go-whatsapp/binary/proto"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/tech-nico/whatsapp-cli/client"
 )
+
+var chatSearchStr string
 
 // getChatsCmd represents the getChats command
 var getChatsCmd = &cobra.Command{
@@ -34,20 +39,39 @@ var getChatsCmd = &cobra.Command{
 	Run:   getChats,
 }
 
-func getChats(cmd *cobra.Command, args []string) {
-	log.Debug("getChats called")
-	wc, err := client.NewClient()
-	if err != nil {
-		log.Errorf("Error while initializing Whatsapp client: %s", err)
+func handleRawMessage(msg *proto.WebMessageInfo) {
+	log.Debug("getChats.handleRawMessage invoked. Doing nothing")
+	log.Trace(msg)
+}
+
+func handleTextMessage(msg whatsapp.TextMessage) {
+	log.Debug("getChats.handleTextMessage invoked. Doing nothing")
+	log.Trace(msg)
+}
+
+func displayChatSearchResults(searchStr string, chats map[string]whatsapp.Chat) {
+	names := make([]string, 100)
+
+	for _, v := range chats {
+		name := v.Name
+		if v.Name == "" {
+			name = v.Jid
+		}
+		names = append(names, name)
 	}
-	chats, err := wc.GetChats()
-	if err != nil {
-		log.Fatalf("Error while retrieving chats: %s", err)
-	}
+	names = removeDuplicates(names)
+	sort.Strings(names)
+	names = FilterByContain(names, searchStr)
+	fmt.Printf("Chat matching search string '%s':\n%s\n", searchStr, strings.Join(names, "\n"))
+
+}
+
+func displayAllChats(chats map[string]whatsapp.Chat) {
 	type orderedChat struct {
 		Name string
 		Time int64
 	}
+
 	ordered := make([]orderedChat, 0)
 
 	log.Debugf("Chats is %v", chats)
@@ -58,9 +82,13 @@ func getChats(cmd *cobra.Command, args []string) {
 			log.Warnf("Error while converting a timestamp to integer: %s. Skipping this chat...", err)
 			continue
 		}
+		name := v.Name
+		if name == "" {
+			name = v.Jid
+		}
 
 		newChat := orderedChat{
-			Name: v.Name,
+			Name: name,
 			Time: time,
 		}
 
@@ -75,11 +103,64 @@ func getChats(cmd *cobra.Command, args []string) {
 		//time.Unix(ordered[k].Time, 0)
 		fmt.Printf("%s\n", ordered[k].Name)
 	}
+
+}
+
+func goGetChats(ch chan interface{}) {
+	wc, err := client.NewClient(ch)
+	if err != nil {
+		log.Errorf("Error while initializing Whatsapp client: %s", err)
+	}
+	chats, err := wc.GetChats()
+	if err != nil {
+		log.Fatalf("Error while retrieving chats: %s", err)
+	}
+
+	ch <- chats
+}
+
+func doGetChats() map[string]whatsapp.Chat {
+	ch := make(chan interface{})
+	chats := map[string]whatsapp.Chat{}
+	go goGetChats(ch)
+ForLoop:
+	for {
+		select {
+		case msg := <-ch:
+			switch msg := msg.(type) {
+			case *proto.WebMessageInfo:
+				handleRawMessage(msg)
+			case whatsapp.TextMessage:
+				handleTextMessage(msg)
+			case map[string]whatsapp.Chat:
+				chats = msg
+				break ForLoop
+			default:
+				log.Warn("\nUnknown message type: %T", msg)
+			}
+
+		}
+	}
+
+	return chats
+}
+
+func getChats(cmd *cobra.Command, args []string) {
+	log.Debug("getChats called")
+
+	chats := doGetChats()
+
+	if chatSearchStr != "" {
+		displayChatSearchResults(chatSearchStr, chats)
+	} else {
+		displayAllChats(chats)
+	}
+
 }
 
 func init() {
 	getCmd.AddCommand(getChatsCmd)
-
+	getChatsCmd.Flags().StringVarP(&chatSearchStr, "search", "s", "", "Search for a chat resembling the given string. Ex: -s twl would return cartwheel")
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command

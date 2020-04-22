@@ -16,7 +16,8 @@ type Completer struct {
 }
 
 func NewCompleter() *Completer {
-	c, err := wc.NewClient()
+	ch := make(chan interface{})
+	c, err := wc.NewClient(ch)
 
 	if err != nil {
 
