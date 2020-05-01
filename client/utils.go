@@ -121,7 +121,7 @@ func deleteSession() error {
 	return os.Remove(getConfigFileName())
 }
 
-func storeChatsToFile(chats map[string]Chat) {
+func storeChatsToFile(chats []whatsapp.Chat) {
 	log.Trace("Writing list of chats to file...")
 	file, err := createFileIfNeeded(getChatsFileName())
 	if err != nil {
@@ -136,9 +136,9 @@ func storeChatsToFile(chats map[string]Chat) {
 	}
 }
 
-func readChatsFromFile() map[string]Chat {
+func readChatsFromFile() []whatsapp.Chat {
 	log.Debugf("Reading chats from file...")
-	chats := make(map[string]Chat)
+	chats := []whatsapp.Chat{}
 	//If the file was last updated more than 1 day ago, return nil so new chats will be pulled
 	file, err := os.Open(getChatsFileName())
 	if err != nil {

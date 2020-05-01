@@ -17,11 +17,7 @@ package cmd
 
 import (
 	"fmt"
-	"sort"
 	"strings"
-
-	"github.com/Rhymen/go-whatsapp"
-	"github.com/Rhymen/go-whatsapp/binary/proto"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -41,96 +37,15 @@ var getContactsCmd = &cobra.Command{
 	Run: getContacts,
 }
 
-func handleContactsRawMessage(msg *proto.WebMessageInfo) {
-	log.Debug("handleContactsRawMessage: Handling raw message in getContacts. Doing nothing...")
-	log.Trace(msg)
-}
-
-func handleContactsTextMessage(msg whatsapp.TextMessage) {
-	log.Debug("handleContactsTextMessage: Handling text message in getContacts. Doing nothing...")
-	log.Trace(msg)
-}
-
-func goContacts(ch chan interface{}) {
-
-	wc, err := client.NewClient(ch)
-	if err != nil {
-		log.Errorf("Error while initializing Whatsapp client: %s", err)
-	}
-	contacts, err := wc.GetContacts()
-	if err != nil {
-		log.Fatalf("Error while retriving contacts: %s", err)
-	}
-
-	log.Tracef("Contacts: %v", contacts)
-
-	ch <- contacts
-}
-
-func contactsToStringSlice(contacts map[string]whatsapp.Contact) []string {
-	returnContacts := []string{}
-	if len(contacts) == 0 {
-		log.Info("No contacts found")
-	} else {
-		noName := make([]string, 0)
-		storedContacts := make([]string, 0)
-
-		for k, v := range contacts {
-			if strings.TrimSpace(v.Name) == "" {
-				noName = append(noName, strings.TrimSuffix(k, "@s.whatsapp.net"))
-			} else {
-				storedContacts = append(storedContacts, v.Name+" ("+v.Short+")")
-			}
-
-		}
-
-		if searchStr != "" {
-			returnContacts = append(noName, storedContacts...)
-			returnContacts = FilterByContain(returnContacts, searchStr)
-		} else {
-			//order the storedContacts alphabetically
-			sort.Strings(storedContacts)
-
-			returnContacts = storedContacts
-
-			//Display contacts with no name (just the phone number)
-			if all {
-				returnContacts = append(noName, storedContacts...)
-			}
-		}
-	}
-
-	return returnContacts
-}
-
-func doGetContacts() map[string]whatsapp.Contact {
-	ch := make(chan interface{})
-	contacts := make(map[string]whatsapp.Contact, 0)
-	go goContacts(ch)
-ForLoop:
-	for {
-		select {
-		case msg := <-ch:
-			switch msg := msg.(type) {
-			case *proto.WebMessageInfo:
-				handleContactsRawMessage(msg)
-			case whatsapp.TextMessage:
-				handleContactsTextMessage(msg)
-			case map[string]whatsapp.Contact:
-				contacts = msg
-				break ForLoop
-			default:
-				fmt.Printf("Unknown message type %T: %v", msg, msg)
-			}
-		}
-	}
-
-	return contacts
-}
-
 func getContacts(cmd *cobra.Command, args []string) {
+
+	h := NewHandler(make(chan interface{}))
+	wc, err := client.NewClient(h)
+	if err != nil {
+		log.Fatalf("Error while initializing whatsapp client: %s", err)
+	}
 	log.Debug("getContacts called")
-	contacts := contactsToStringSlice(doGetContacts())
+	contacts, err := wc.GetFilteredContactsNames(searchStr, all)
 	if searchStr != "" {
 		if len(contacts) != 0 {
 			fmt.Printf("\nMatches found for '%s':\n\n%s\n", searchStr, strings.Join(contacts, "\n"))

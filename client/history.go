@@ -2,6 +2,7 @@ package client
 
 import (
 	"fmt"
+	"strings"
 
 	whatsapp "github.com/Rhymen/go-whatsapp"
 	log "github.com/sirupsen/logrus"
@@ -10,7 +11,7 @@ import (
 // historyHandler for acquiring chat history
 type historyHandler struct {
 	c        *WhatsappClient
-	messages []string
+	messages []interface{}
 }
 
 func (h *historyHandler) ShouldCallSynchronously() bool {
@@ -20,6 +21,7 @@ func (h *historyHandler) ShouldCallSynchronously() bool {
 // handles and accumulates history's text messages.
 // To handle images/documents/videos add corresponding handle functions
 func (h *historyHandler) HandleTextMessage(message whatsapp.TextMessage) {
+	log.Debug("In historyHandler.HandleTextMessage")
 	authorID := "-"
 	screenName := "-"
 	if message.Info.FromMe {
@@ -35,13 +37,14 @@ func (h *historyHandler) HandleTextMessage(message whatsapp.TextMessage) {
 			screenName = *message.Info.Source.PushName
 		}
 		if screenName == "-" {
-			if contact, ok := h.c.contacts[authorID]; ok {
+			if contact, ok := h.c.Contacts[authorID]; ok {
 				screenName = contact.Name
 			}
 		}
 	}
-	dateFmt := FormatDate(message.Info.Timestamp)
-	h.messages = append(h.messages, fmt.Sprintf("\n%s (%s): \n%s\n", dateFmt, screenName, message.Text))
+	//dateFmt := FormatDate(message.Info.Timestamp)
+	//h.messages = append(h.messages, fmt.Sprintf("\n%s (%s): \n%s\n", dateFmt, screenName, message.Text))
+	h.messages = append(h.messages, message)
 
 }
 
@@ -50,27 +53,40 @@ func (h *historyHandler) HandleError(err error) {
 }
 
 //GetHistory Get the history given a chat JID
-func (c *WhatsappClient) GetHistory(jid string, count int) []string {
+func (wc *WhatsappClient) GetHistory(jid string, count int) ([]interface{}, error) {
 	// create out history handler
 
-	//Load the list of contacts to look up the scren name in the history handler
-	if len(c.contacts) == 0 {
-		contacts, err := c.GetContacts()
-
-		if err != nil {
-			log.Warningf("Error while retrieving contacts: %s", err)
-			contacts = make(map[string]whatsapp.Contact)
-		}
-
-		c.contacts = contacts
-	}
-	handler := &historyHandler{c: c}
+	handler := &historyHandler{c: wc}
 
 	// load chat history and pass messages to the history handler to accumulate
 	if count <= 0 {
 		count = 100
 	}
-	c.WaC.LoadChatMessages(jid, count, "", true, false, handler)
-	//c.wac.LoadFullChatHistory(jid, 300, time.Millisecond*300, handler)
-	return handler.messages
+	err := wc.WaC.LoadChatMessages(jid, count, "", true, false, handler)
+	if err != nil {
+		return nil, fmt.Errorf("Error retriving %s chat history: %s", jid, err)
+	}
+
+	//wc.wac.LoadFullChatHistory(jid, 300, time.Millisecond*300, handler)
+	return handler.messages, nil
+}
+
+func (wc *WhatsappClient) findChat(jid string) (whatsapp.Chat, error) {
+	foundChat := whatsapp.Chat{}
+
+	//Search all the chats with the given name. Since you might have two chats with the same name, ask which one to use
+	//in case there are two or more with the same name
+	for idx := range wc.Chats {
+		currJid := wc.Chats[idx].Jid
+		if strings.EqualFold(strings.TrimSpace(currJid), strings.TrimSpace(jid)) {
+			foundChat = wc.Chats[idx]
+		}
+	}
+
+	if (foundChat == whatsapp.Chat{}) {
+		return foundChat, fmt.Errorf("pushHistoryToCh: no chat with jid %s could be found", jid)
+	}
+
+	return foundChat, nil
+
 }

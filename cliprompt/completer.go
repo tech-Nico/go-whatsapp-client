@@ -12,12 +12,19 @@ import (
 
 type Completer struct {
 	Client *wc.WhatsappClient
-	Chats  map[string]whatsapp.Chat
+	Chats  []whatsapp.Chat
+}
+
+type CompleterHandler struct {
+}
+
+func (h *CompleterHandler) HandleError(err error) {
+	log.Printf("Error occured while retrieving chat history: %s", err)
 }
 
 func NewCompleter() *Completer {
-	ch := make(chan interface{})
-	c, err := wc.NewClient(ch)
+	handler := &CompleterHandler{}
+	c, err := wc.NewClient(handler)
 
 	if err != nil {
 
@@ -27,7 +34,7 @@ func NewCompleter() *Completer {
 		}).Error("Error while logging in to Whatsapp")
 	}
 
-	chats, err := c.GetChats()
+	//chats, err := c.GetChats()
 
 	if err != nil {
 		log.Errorf("Error while retriving chats: %s", err)
@@ -36,7 +43,8 @@ func NewCompleter() *Completer {
 
 	return &Completer{
 		Client: &c,
-		Chats:  chats,
+		Chats:  []whatsapp.Chat{},
+		//Chats:  chats,
 	}
 }
 

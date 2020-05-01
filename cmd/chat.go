@@ -38,8 +38,9 @@ var chatCmd = &cobra.Command{
 	Run:   chatWith,
 }
 
-func findChat(chatName string) (whatsapp.Contact, error) {
-	allContacts := doGetContacts()
+func findChat(wc *client.WhatsappClient, chatName string) (whatsapp.Contact, error) {
+	allContacts := wc.GetFullContactsDetails(true)
+
 	var foundContact whatsapp.Contact
 
 	for _, v := range allContacts {
@@ -72,14 +73,6 @@ func handleChatTextMessage(remoteMsgReceived whatsapp.TextMessage, contact whats
 	return messageHandled
 }
 
-func receiveChatMessage(ch chan interface{}) {
-	_, err := client.NewClient(ch)
-	if err != nil {
-		log.Errorf("Error while initializing Whatsapp client: %s", err)
-	}
-
-}
-
 func sendToChat(ch chan string) {
 	for {
 		reader := bufio.NewReader(os.Stdin)
@@ -91,6 +84,13 @@ func sendToChat(ch chan string) {
 }
 
 func chatWith(cmd *cobra.Command, args []string) {
+
+	h := NewHandler(make(chan interface{}))
+	wc, err := client.NewClient(h)
+	if err != nil {
+		log.Errorf("Error while initializing Whatsapp client: %s", err)
+	}
+
 	log.Debug("chatWith called")
 	if len(args) == 0 {
 		log.Fatal("Please specify a contact/group chat")
@@ -98,7 +98,7 @@ func chatWith(cmd *cobra.Command, args []string) {
 
 	chatName := getNameFromArgs(args)
 	log.Debugf("Chatting with %s", chatName)
-	contact, err := findChat(chatName)
+	contact, err := findChat(&wc, chatName)
 	if err != nil {
 		log.Fatalf("Error while find contact %s", chatName)
 	}
@@ -107,13 +107,10 @@ func chatWith(cmd *cobra.Command, args []string) {
 	}
 	log.Infof("Contact %s found: %v", chatName, contact)
 
-	//Channel to receive incoming messages
-	receiveMsgChannel := make(chan interface{})
 	//Channel we'll use to send a message to the contact
 	sendToChatCh := make(chan string)
 
 	go sendToChat(sendToChatCh)
-	go receiveChatMessage(receiveMsgChannel)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
@@ -125,10 +122,10 @@ ForLoop:
 		case sendMyMessage := <-sendToChatCh:
 			fmt.Println("Just Echoing for now: " + sendMyMessage)
 			fmt.Print("\n-> ")
-		case remoteMsgReceived := <-receiveMsgChannel:
+		case remoteMsgReceived := <-h.Incoming:
 			switch remoteMsgReceived := remoteMsgReceived.(type) {
 			case *proto.WebMessageInfo:
-				handleChatRawMessage(remoteMsgReceived)
+				log.Debugf("chatWith: received raw message: %s", remoteMsgReceived)
 			case whatsapp.TextMessage:
 				if handleChatTextMessage(remoteMsgReceived, contact) {
 					fmt.Print("\n-> ")

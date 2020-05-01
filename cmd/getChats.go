@@ -20,13 +20,10 @@ import (
 	"strings"
 
 	"sort"
-	"strconv"
 
 	"github.com/Rhymen/go-whatsapp"
-	"github.com/Rhymen/go-whatsapp/binary/proto"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/tech-nico/whatsapp-cli/client"
+	"github.com/tech-nico/whatsapp-cli/utils"
 )
 
 var chatSearchStr string
@@ -39,20 +36,11 @@ var getChatsCmd = &cobra.Command{
 	Run:   getChats,
 }
 
-func handleRawMessage(msg *proto.WebMessageInfo) {
-	log.Debug("getChats.handleRawMessage invoked. Doing nothing")
-	log.Trace(msg)
-}
-
-func handleTextMessage(msg whatsapp.TextMessage) {
-	log.Debug("getChats.handleTextMessage invoked. Doing nothing")
-	log.Trace(msg)
-}
-
-func displayChatSearchResults(searchStr string, chats map[string]whatsapp.Chat) {
+func displayChatSearchResults(searchStr string, chats []whatsapp.Chat) {
 	names := make([]string, 100)
 
-	for _, v := range chats {
+	for idx := range chats {
+		v := chats[idx]
 		name := v.Name
 		if v.Name == "" {
 			name = v.Jid
@@ -61,101 +49,41 @@ func displayChatSearchResults(searchStr string, chats map[string]whatsapp.Chat) 
 	}
 	names = removeDuplicates(names)
 	sort.Strings(names)
-	names = FilterByContain(names, searchStr)
+	names = utils.FilterByContain(names, searchStr)
 	fmt.Printf("Chat matching search string '%s':\n%s\n", searchStr, strings.Join(names, "\n"))
 
 }
 
-func displayAllChats(chats map[string]whatsapp.Chat) {
-	type orderedChat struct {
-		Name string
-		Time int64
-	}
+func displayAllChats(chats []whatsapp.Chat) {
 
-	ordered := make([]orderedChat, 0)
-
-	log.Debugf("Chats is %v", chats)
-	for _, v := range chats {
-
-		time, err := strconv.ParseInt(v.LastMessageTime, 10, 64)
-		if err != nil {
-			log.Warnf("Error while converting a timestamp to integer: %s. Skipping this chat...", err)
-			continue
-		}
-		name := v.Name
-		if name == "" {
-			name = v.Jid
-		}
-
-		newChat := orderedChat{
-			Name: name,
-			Time: time,
-		}
-
-		ordered = append(ordered, newChat)
-	}
-
-	sort.Slice(ordered, func(i, j int) bool {
-		return ordered[i].Time < ordered[j].Time
-	})
-
-	for k := range ordered {
+	for k := range chats {
 		//time.Unix(ordered[k].Time, 0)
-		fmt.Printf("%s\n", ordered[k].Name)
+		fmt.Printf("%s\n", chats[k].Name)
 	}
 
-}
-
-func goGetChats(ch chan interface{}) {
-	wc, err := client.NewClient(ch)
-	if err != nil {
-		log.Errorf("Error while initializing Whatsapp client: %s", err)
-	}
-	chats, err := wc.GetChats()
-	if err != nil {
-		log.Fatalf("Error while retrieving chats: %s", err)
-	}
-
-	ch <- chats
-}
-
-func doGetChats() map[string]whatsapp.Chat {
-	ch := make(chan interface{})
-	chats := map[string]whatsapp.Chat{}
-	go goGetChats(ch)
-ForLoop:
-	for {
-		select {
-		case msg := <-ch:
-			switch msg := msg.(type) {
-			case *proto.WebMessageInfo:
-				handleRawMessage(msg)
-			case whatsapp.TextMessage:
-				handleTextMessage(msg)
-			case map[string]whatsapp.Chat:
-				chats = msg
-				break ForLoop
-			default:
-				log.Warn("\nUnknown message type: %T", msg)
-			}
-
-		}
-	}
-
-	return chats
 }
 
 func getChats(cmd *cobra.Command, args []string) {
-	log.Debug("getChats called")
+	/*	ch := make(chan interface{})
+		wc, err := client.NewClient(ch)
 
-	chats := doGetChats()
+		if err != nil {
+			log.Fatalf("Error while initializing whatsapp client: %s", err)
+		}
 
-	if chatSearchStr != "" {
-		displayChatSearchResults(chatSearchStr, chats)
-	} else {
-		displayAllChats(chats)
-	}
+		log.Debug("getChats called")
 
+		chats, err := wc.GetChats()
+		if err != nil {
+			log.Fatalf("Error while getting chats: %s", err)
+		}
+
+		if chatSearchStr != "" {
+			displayChatSearchResults(chatSearchStr, chats)
+		} else {
+			displayAllChats(chats)
+		}
+	*/
 }
 
 func init() {

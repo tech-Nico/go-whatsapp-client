@@ -6,12 +6,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	go_prompt "github.com/c-bata/go-prompt"
-	completer "github.com/c-bata/go-prompt/completer"
 	homedir "github.com/mitchellh/go-homedir"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	p "github.com/tech-nico/whatsapp-cli/cliprompt"
+	"github.com/tech-nico/whatsapp-cli/ui"
 )
 
 var cfgFile string
@@ -33,6 +31,8 @@ var (
 )
 
 func initialize(cmd *cobra.Command, args []string) {
+	log.SetReportCaller(true)
+
 	if isTrace {
 		log.SetLevel(log.TraceLevel)
 	} else if isDebug {
@@ -45,19 +45,11 @@ func initialize(cmd *cobra.Command, args []string) {
 //runPrompt execute the go-prompt version of the CLI if no parameters are
 //specified on the command line
 func runPrompt(cmd *cobra.Command, args []string) {
-	cmp := p.NewCompleter()
-	fmt.Printf("whatsapp-cli %s (rev-%s)\n", version, revision)
-	fmt.Println("Please use `exit` or `Ctrl-D` to exit this program.")
+	_, err := ui.ShowApp()
 
-	p := go_prompt.New(
-		p.Executor,
-		cmp.CompleteCommand,
-		go_prompt.OptionTitle("whatsapp-cli: interactive CLI whatsapp"),
-		go_prompt.OptionPrefix(">>> "),
-		go_prompt.OptionInputTextColor(go_prompt.Yellow),
-		go_prompt.OptionCompletionWordSeparator(completer.FilePathCompletionSeparator),
-	)
-	p.Run()
+	if err != nil {
+		log.Fatalf("Error while instantiating whatsapp-cli: %s", err)
+	}
 
 }
 
