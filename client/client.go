@@ -68,32 +68,48 @@ func newLogin(wac *whatsapp.Conn) error {
 	return nil
 }
 
+type IWhatsappHandler interface {
+	SetClient(*WhatsappClient)
+}
+
 /*
 NewClient Create a new WhatsappClient that will let you do all things with whatsapp.
 If a session is stored on disk, use that session otherwise ask to login.
 If a session is stored on disk but the session is expired, then ask to login
 */
-func NewClient(handler whatsapp.Handler) (WhatsappClient, error) {
+func NewClient(handler interface{}) (WhatsappClient, error) {
 	if handler == nil {
 		log.Fatalf("Empty handler passed to NewClient")
 	}
+
+	if _, ok := handler.(IWhatsappHandler); !ok {
+		log.Fatalf("NewClient requires a parameter of type IWhatsappHandler and whatsapp.Handler")
+	}
+
+	if _, ok := handler.(whatsapp.Handler); !ok {
+		log.Fatalf("NewClient requires a parameter of type IWhatsappHandler and whatsapp.Handler")
+	}
+
 	//create new WhatsApp connection
 	pwac, err := whatsapp.NewConn(120 * time.Second)
+
+	newClient := WhatsappClient{
+		WaC: pwac,
+	}
+
+	handler.(IWhatsappHandler).SetClient(&newClient)
+
 	pwac.SetClientName("Command Line Whatsapp Client", "CLI Whatsapp")
 	pwac.SetClientVersion(0, 4, 1307)
 	if err != nil {
 		log.WithField("error", err).Fatal("error creating connection to Whatsapp\n", err)
 	}
 
-	pwac.AddHandler(handler)
+	pwac.AddHandler(handler.(whatsapp.Handler))
 
 	//login or restore
 	if err := newLogin(pwac); err != nil {
 		log.WithField("error", err).Fatal("error logging in\n")
-	}
-
-	newClient := WhatsappClient{
-		WaC: pwac,
 	}
 
 	//Disconnect safely

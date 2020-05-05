@@ -18,7 +18,9 @@ func (thisUI *UI) loadChat(chatFrame *tview.Frame, chatView *tview.TextView, cha
 	return func() {
 
 		thisUI.selectedContact = chat
-
+		currItem := thisUI.ContactList.GetCurrentItem()
+		currItemTxt, _ := thisUI.ContactList.GetItemText(currItem)
+		thisUI.ContactList.SetItemText(currItem, currItemTxt, "")
 		chatFrame.SetTitle(fmt.Sprintf("Chat with %s", chat.Name))
 		chatView.Clear()
 		chatView.SetText("Loading history...")
@@ -33,6 +35,7 @@ func (thisUI *UI) loadChat(chatFrame *tview.Frame, chatView *tview.TextView, cha
 			switch currMessage.(type) {
 			case whatsapp.TextMessage:
 				msg := currMessage.(whatsapp.TextMessage)
+				msgId := msg.Info.Id
 				authorID := "-"
 				screenName := "-"
 				if msg.Info.FromMe {
@@ -57,12 +60,14 @@ func (thisUI *UI) loadChat(chatFrame *tview.Frame, chatView *tview.TextView, cha
 				messageHeader := fmt.Sprintf("%s (%s)", dateFmt, screenName)
 				message := msg.Text
 
-				if msg.Info.FromMe {
-					messageHeader = thisUI.alignRight(messageHeader)
-					message = thisUI.alignRight(message)
+				if !msg.Info.FromMe {
+					messageHeader = "[::b]" + messageHeader
+					message = "[::b]" + message
 				}
 				fmt.Fprintf(thisUI.ChatView, "%s\n", messageHeader)
 				fmt.Fprintf(thisUI.ChatView, "%s\n\n", message)
+
+				thisUI.Client.WaC.Read(msg.Info.RemoteJid, msgId)
 
 				//h.messages = append(h.messages, fmt.Sprintf("\n%s (%s): \n%s\n", dateFmt, screenName, message.Text))
 			}
@@ -74,7 +79,7 @@ func (thisUI *UI) loadChat(chatFrame *tview.Frame, chatView *tview.TextView, cha
 }
 
 //obsolete - remove
-func (thisUI *UI) buildContactsList(chatFrame *tview.Frame, chatView *tview.TextView) (*tview.Frame, error) {
+/* func (thisUI *UI) buildContactsList(chatFrame *tview.Frame, chatView *tview.TextView) (*tview.Frame, error) {
 	chats := thisUI.Client.Chats
 
 	contactsList := tview.NewList()
@@ -83,6 +88,7 @@ func (thisUI *UI) buildContactsList(chatFrame *tview.Frame, chatView *tview.Text
 	contactsFrame := tview.NewFrame(contactsList)
 	contactsFrame.SetBorder(true)
 	contactsFrame.AddText("Chats", true, tview.AlignCenter, tcell.ColorGreen)
+
 	for _, v := range chats {
 		unread := ""
 		if i, err := strconv.Atoi(v.Unread); err == nil && i > 0 {
@@ -96,8 +102,13 @@ func (thisUI *UI) buildContactsList(chatFrame *tview.Frame, chatView *tview.Text
 		}
 	}
 
+	//Select the first item in the list
+	contactsList.SetCurrentItem(0)
+	thisUI.loadChat(chatFrame, chatView, chats[0])()
+
 	return contactsFrame, nil
 }
+*/
 
 func (thisUI *UI) alignRight(txt string) string {
 	_, _, width, _ := thisUI.ChatView.GetInnerRect()
@@ -140,12 +151,14 @@ func (thisUI *UI) BuildChatWindow() (*tview.Flex, error) {
 
 	chatView := tview.NewTextView()
 	chatView.SetBorder(true)
+	chatView.SetDynamicColors(true)
+	chatView.SetWordWrap(true)
 	chatView.SetChangedFunc(func() {
 		thisUI.App.Draw()
 	})
 
 	//Now we have all we need to create a new instance of the Whatsapp client
-	handler := NewWhatsappHandler(thisUI.App, chatView)
+	handler := NewWhatsappHandler(thisUI)
 	client, err := client.NewClient(handler)
 
 	if err != nil {
@@ -161,7 +174,9 @@ func (thisUI *UI) BuildChatWindow() (*tview.Flex, error) {
 	chats := thisUI.Client.Chats
 
 	contactsList := tview.NewList()
+	thisUI.ContactList = contactsList
 	contactsList.ShowSecondaryText(true)
+	contactsList.SetHighlightFullLine(true)
 
 	contactsFrame := tview.NewFrame(contactsList)
 	contactsFrame.SetBorder(true)
@@ -178,6 +193,9 @@ func (thisUI *UI) BuildChatWindow() (*tview.Flex, error) {
 			contactsList.AddItem(v.Jid, unread, 0, thisUI.loadChat(chatFrame, chatView, v))
 		}
 	}
+	//Select the first item in the list
+	contactsList.SetCurrentItem(0)
+	thisUI.loadChat(chatFrame, chatView, chats[0])()
 
 	inputFrame := thisUI.buildSendMessageInputFrame(chatView)
 

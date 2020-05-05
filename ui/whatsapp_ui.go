@@ -17,6 +17,7 @@ type UI struct {
 	LogView         *tview.TextView
 	ChatView        *tview.TextView
 	selectedContact whatsapp.Chat
+	ContactList     *tview.List
 }
 
 func (thisUI *UI) BuildInfoBar() *tview.TextView {
