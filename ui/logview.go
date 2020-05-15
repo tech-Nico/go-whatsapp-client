@@ -2,12 +2,12 @@ package ui
 
 import (
 	"github.com/gdamore/tcell"
-	"github.com/rivo/tview"
 	log "github.com/sirupsen/logrus"
+	"gitlab.com/tslocum/cview"
 )
 
-func (thisUI *UI) BuildLogView() *tview.TextView {
-	logView := tview.NewTextView()
+func (thisUI *UI) BuildLogView() *cview.TextView {
+	logView := cview.NewTextView()
 	logView.SetDynamicColors(true).
 		SetScrollable(true).
 		SetTitle("Logs").

@@ -5,24 +5,26 @@ import (
 
 	"github.com/Rhymen/go-whatsapp"
 	"github.com/Rhymen/go-whatsapp/binary/proto"
-	"github.com/rivo/tview"
 	log "github.com/sirupsen/logrus"
 	"github.com/tech-nico/whatsapp-cli/client"
+	"gitlab.com/tslocum/cview"
 )
 
 type UI struct {
 	Client          client.WhatsappClient
-	Pages           *tview.Pages
-	App             *tview.Application
-	LogView         *tview.TextView
-	ChatView        *tview.TextView
+	Pages           *cview.Pages
+	App             *cview.Application
+	LogView         *cview.TextView
+	ChatView        *cview.TextView
 	selectedContact whatsapp.Chat
-	ContactList     *tview.List
+	ContactList     *cview.List
+	myJID           string
+	cyclePrimitives []*cview.Primitive //This is used to cycle primitives focus when user press Tab
 }
 
-func (thisUI *UI) BuildInfoBar() *tview.TextView {
+func (thisUI *UI) BuildInfoBar() *cview.TextView {
 	// The bottom row has some info on where we are.
-	info := tview.NewTextView().
+	info := cview.NewTextView().
 		SetDynamicColors(true).
 		SetRegions(true).
 		SetWrap(false).
@@ -39,9 +41,9 @@ func (thisUI *UI) BuildInfoBar() *tview.TextView {
 func ShowApp() (*UI, error) {
 	thisUI := &UI{}
 
-	thisUI.App = tview.NewApplication()
+	thisUI.App = cview.NewApplication()
 
-	thisUI.Pages = tview.NewPages()
+	thisUI.Pages = cview.NewPages()
 
 	flex, err := thisUI.BuildChatWindow()
 
@@ -58,8 +60,8 @@ func ShowApp() (*UI, error) {
 	info := thisUI.BuildInfoBar()
 
 	// Create the main layout.
-	layout := tview.NewFlex().
-		SetDirection(tview.FlexRow).
+	layout := cview.NewFlex().
+		SetDirection(cview.FlexRow).
 		AddItem(thisUI.Pages, 0, 1, true).
 		AddItem(info, 1, 1, false)
 

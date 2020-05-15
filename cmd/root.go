@@ -32,6 +32,10 @@ var (
 
 func initialize(cmd *cobra.Command, args []string) {
 	log.SetReportCaller(true)
+	log.SetFormatter(&log.TextFormatter{
+		DisableColors: true,
+		FullTimestamp: true,
+	})
 
 	if isTrace {
 		log.SetLevel(log.TraceLevel)
