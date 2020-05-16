@@ -1,7 +1,11 @@
 package client
 
 import (
+	"bytes"
 	"encoding/gob"
+	"fmt"
+	"image"
+	"image/jpeg"
 	"os"
 	"path"
 	"path/filepath"
@@ -40,6 +44,11 @@ func getConfigFileName() string {
 func getChatsFileName() string {
 	home := getHomeFolder()
 	return filepath.Join(home, ".go-whatsapp-client/chats.bin")
+}
+
+func getImageFileName(msg whatsapp.ImageMessage) string {
+	home := getHomeFolder()
+	return filepath.Join(home, ".go-whatsapp-client/images/", msg.Info.Id+".jpg")
 }
 
 func createFileIfNeeded(fileName string) (*os.File, error) {
@@ -190,4 +199,64 @@ func FormatDate(timestamp uint64) string {
 	}
 
 	return dateFmt
+}
+
+//SaveImage Saves a whatsapp image to disk
+func SaveImage(msg whatsapp.ImageMessage, content []byte) error {
+	log.Trace("Saving image to file...")
+	fileName := getImageFileName(msg)
+	file, err := createFileIfNeeded(fileName)
+	if err != nil {
+		return fmt.Errorf("Error while creating image file %s: %s", fileName, err)
+	}
+	defer file.Close()
+	_, err = file.Write(content)
+	file.Sync()
+
+	if err != nil {
+		return fmt.Errorf("Error while saving image file: %s", err) //My girflriend just farted while I was writing this line of code (2020-05-16 15:45:13)
+	}
+
+	return nil
+}
+
+//ImageExists Check whether the image represented by the given Whatsapp message exists on filesytem
+func ImageExists(msg whatsapp.ImageMessage) bool {
+	log.Trace("Loading image %s from file", msg.Info.Id)
+	fileName := getImageFileName(msg)
+	if _, err := os.Stat(fileName); err == nil {
+		return true
+	} else if os.IsNotExist(err) {
+		return false
+	} else {
+		//Not sure.. returning false
+		return false
+	}
+}
+
+//ReadImage Load the image represented by the given Whatsapp message.
+//If the image does not exists, return an error
+func ReadImage(msg whatsapp.ImageMessage) ([]byte, error) {
+	image.RegisterFormat("jpeg", "jpeg", jpeg.Decode, jpeg.DecodeConfig)
+	log.Trace("Loading image file")
+	if !ImageExists(msg) {
+		return nil, fmt.Errorf("Image %s does not exist", getImageFileName(msg))
+	}
+
+	fileName := getImageFileName(msg)
+	file, err := os.Open(fileName)
+
+	if err != nil {
+		return nil, fmt.Errorf("Error while opening image file %s: %s", fileName, err)
+	}
+	defer file.Close()
+
+	img, _, err := image.Decode(file)
+	buf := new(bytes.Buffer)
+	err = jpeg.Encode(buf, img, nil)
+	if err != nil {
+		return nil, fmt.Errorf("Error while reading image file: %s", err)
+	}
+	return buf.Bytes(), nil
+
 }

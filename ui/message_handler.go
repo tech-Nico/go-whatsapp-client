@@ -118,6 +118,7 @@ func (wa *WhatsappHandler) PrintMessage(msgInfo whatsapp.MessageInfo, header, tx
 }
 
 func (wa *WhatsappHandler) HandleImageMessage(msg whatsapp.ImageMessage) {
+	log.Info("Got image message")
 	imageScale := 2  //this can be one of 0 - resize (default) or 1 - fill or   2 - fit
 	imageDither := 1 //this can be 0 - no dithering (default) or  1 - with blocks or   2 - with chars
 	// set image scale factor for ANSIPixel grid
@@ -128,18 +129,34 @@ func (wa *WhatsappHandler) HandleImageMessage(msg whatsapp.ImageMessage) {
 
 	header := wa.buildMessageHeader(msg.Info)
 	txt := ""
+	var contentBytes []byte
+	var err error
+
+	if client.ImageExists(msg) {
+		contentBytes, err = client.ReadImage(msg)
+		if err != nil {
+			log.Warn("Unable to load image file. Re-downloading..")
+		}
+		contentBytes, err = msg.Download()
+	} else {
+		contentBytes, err = msg.Download()
+	}
 
 	if wa.ui.ChatView != nil {
 		_, _, width, height := wa.ui.ChatView.Box.GetRect()
-		contentBytes, err := msg.Download()
+
 		if err != nil {
 			txt = fmt.Sprintf("Error while downloading image: %s", err)
 		} else {
-
+			err = client.SaveImage(msg, contentBytes)
+			if err != nil {
+				log.Warnf("Error while saving image: %s", err)
+			}
 			sm := ansimage.ScaleMode(imageScale)
 			dm := ansimage.DitheringMode(1)
 			content := bytes.NewReader(contentBytes)
 			pix, err := ansimage.NewScaledFromReader(content, height*sfy, width*sfx, color.Black, sm, dm)
+			runtime.GOMAXPROCS(runtime.NumCPU())
 			pix.SetMaxProcs(runtime.NumCPU())
 
 			if err != nil {
