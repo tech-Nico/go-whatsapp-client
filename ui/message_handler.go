@@ -117,8 +117,7 @@ func (wa *WhatsappHandler) PrintMessage(msgInfo whatsapp.MessageInfo, header, tx
 
 }
 
-func (wa *WhatsappHandler) HandleImageMessage(msg whatsapp.ImageMessage) {
-	log.Info("Got image message")
+func (wa *WhatsappHandler) getImageAnsi(msg whatsapp.ImageMessage) string {
 	imageScale := 2  //this can be one of 0 - resize (default) or 1 - fill or   2 - fit
 	imageDither := 1 //this can be 0 - no dithering (default) or  1 - with blocks or   2 - with chars
 	// set image scale factor for ANSIPixel grid
@@ -127,27 +126,31 @@ func (wa *WhatsappHandler) HandleImageMessage(msg whatsapp.ImageMessage) {
 		sfy, sfx = 2, 1 // 2x1 --> without dithering
 	}
 
-	header := wa.buildMessageHeader(msg.Info)
 	txt := ""
 	var contentBytes []byte
 	var err error
 
-	if client.ImageExists(msg) {
-		contentBytes, err = client.ReadImage(msg)
-		if err != nil {
-			log.Warn("Unable to load image file. Re-downloading..")
-		}
-		contentBytes, err = msg.Download()
-	} else {
-		contentBytes, err = msg.Download()
-	}
-
 	if wa.ui.ChatView != nil {
-		_, _, width, height := wa.ui.ChatView.Box.GetRect()
+
+		log.Debug("Loading image and converting into an ANSI characters array")
+
+		if client.ImageExists(msg) {
+			log.Debugf("Image exists. Loading from disk")
+			contentBytes, err = client.ReadImage(msg)
+			if err != nil {
+				log.Warn("Unable to load image file. Re-downloading..")
+			}
+			contentBytes, err = msg.Download()
+		} else {
+			log.Debugf("Image does not exis. Downloading...")
+			contentBytes, err = msg.Download()
+		}
 
 		if err != nil {
 			txt = fmt.Sprintf("Error while downloading image: %s", err)
 		} else {
+			_, _, width, height := wa.ui.ChatView.Box.GetRect()
+
 			err = client.SaveImage(msg, contentBytes)
 			if err != nil {
 				log.Warnf("Error while saving image: %s", err)
@@ -162,12 +165,24 @@ func (wa *WhatsappHandler) HandleImageMessage(msg whatsapp.ImageMessage) {
 			if err != nil {
 				txt = fmt.Sprintf("Error while rendering the image: %s", err)
 			} else {
+				log.Debug("Rendering image...")
 				txt = pix.RenderExt(false, true)
 			}
 		}
 	} else {
+		log.Debug("Chatview not ready. Image won't be displayed")
 		txt = "Chatview not ready.. unable to display image"
 	}
+
+	return txt
+
+}
+func (wa *WhatsappHandler) HandleImageMessage(msg whatsapp.ImageMessage) {
+	log.Trace("Got image message")
+	wa.ui.imagesIDs = append(wa.ui.imagesIDs, msg.Info.Id)
+	header := wa.buildMessageHeader(msg.Info)
+
+	txt := fmt.Sprintf(`["%s"]Highlight to show the image[""]`, msg.Info.Id)
 	wa.PrintAnsiMessage(msg.Info, header, txt)
 }
 

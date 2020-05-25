@@ -22,28 +22,37 @@ func (h *historyHandler) ShouldCallSynchronously() bool {
 // To handle images/documents/videos add corresponding handle functions
 func (h *historyHandler) HandleTextMessage(message whatsapp.TextMessage) {
 	log.Debug("In historyHandler.HandleTextMessage")
-	authorID := "-"
-	screenName := "-"
-	if message.Info.FromMe {
-		authorID = h.c.WaC.Info.Wid
-		screenName = "Me"
-	} else {
-		if message.Info.Source.Participant != nil {
-			authorID = *message.Info.Source.Participant
+	/*	authorID := "-"
+		screenName := "-"
+		if message.Info.FromMe {
+			authorID = h.c.WaC.Info.Wid
+			screenName = "Me"
 		} else {
-			authorID = message.Info.RemoteJid
-		}
-		if message.Info.Source.PushName != nil {
-			screenName = *message.Info.Source.PushName
-		}
-		if screenName == "-" {
-			if contact, ok := h.c.Contacts[authorID]; ok {
-				screenName = contact.Name
+			if message.Info.Source.Participant != nil {
+				authorID = *message.Info.Source.Participant
+			} else {
+				authorID = message.Info.RemoteJid
+			}
+			if message.Info.Source.PushName != nil {
+				screenName = *message.Info.Source.PushName
+			}
+			if screenName == "-" {
+				if contact, ok := h.c.Contacts[authorID]; ok {
+					screenName = contact.Name
+				}
 			}
 		}
-	}
-	//dateFmt := FormatDate(message.Info.Timestamp)
-	//h.messages = append(h.messages, fmt.Sprintf("\n%s (%s): \n%s\n", dateFmt, screenName, message.Text))
+		//dateFmt := FormatDate(message.Info.Timestamp)
+		//h.messages = append(h.messages, fmt.Sprintf("\n%s (%s): \n%s\n", dateFmt, screenName, message.Text))
+	*/
+	h.messages = append(h.messages, message)
+
+}
+
+//HandleImageMessage Add an image message to the list of messages
+func (h *historyHandler) HandleImageMessage(message whatsapp.ImageMessage) {
+	log.Debug("In historyHandler.HandleImageMessage")
+
 	h.messages = append(h.messages, message)
 
 }

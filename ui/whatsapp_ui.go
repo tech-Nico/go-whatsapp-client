@@ -20,6 +20,7 @@ type UI struct {
 	ContactList     *cview.List
 	myJID           string
 	cyclePrimitives []*cview.Primitive //This is used to cycle primitives focus when user press Tab
+	imagesIDs       []string           //We'll store images IDs here so we can do the highlighting and show them when the user chose to show an image
 }
 
 func (thisUI *UI) BuildInfoBar() *cview.TextView {

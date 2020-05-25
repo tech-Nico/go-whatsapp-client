@@ -18,6 +18,7 @@ func (thisUI *UI) loadChat(chatFrame *cview.Frame, chatView *cview.TextView, cha
 	return func() {
 
 		thisUI.selectedContact = chat
+		thisUI.imagesIDs = []string{}
 
 		currItem := thisUI.ContactList.GetCurrentItem()
 		currItemTxt, _ := thisUI.ContactList.GetItemText(currItem)
@@ -35,9 +36,8 @@ func (thisUI *UI) loadChat(chatFrame *cview.Frame, chatView *cview.TextView, cha
 		chatView.Clear()
 		wa := NewWhatsappHandler(thisUI)
 		wa.SetClient(&thisUI.Client)
-		c := len(messages)
 		for idx := range messages {
-			c--
+
 			currMessage := messages[idx]
 			switch currMessage.(type) {
 			case whatsapp.TextMessage:
@@ -80,13 +80,6 @@ func (thisUI *UI) buildSendMessageInputFrame(chatView *cview.TextView) *cview.Fr
 
 	inputField.SetDoneFunc(func(key tcell.Key) {
 		wa := NewWhatsappHandler(thisUI)
-		/*		msgStr := client.FormatDate(uint64(time.Now().Unix()))
-				messageHeader := thisUI.alignRight(fmt.Sprintf("%s (Me)", msgStr))
-				message := thisUI.alignRight(inputField.GetText())
-				fmt.Fprintf(thisUI.ChatView, "%s\n", messageHeader)
-				fmt.Fprintf(thisUI.ChatView, "%s\n\n", message)
-		*/
-
 		msg := whatsapp.TextMessage{
 
 			Info: whatsapp.MessageInfo{
@@ -108,12 +101,48 @@ func (thisUI *UI) buildSendMessageInputFrame(chatView *cview.TextView) *cview.Fr
 	return inputFrame
 }
 
+//this function should select based on the timestamp found on the region
+func (thisUI *UI) selectMessage(chatView *cview.TextView) func(tcell.Key) {
+	return func(key tcell.Key) {
+		currentSelection := chatView.GetHighlights()
+
+		if key == tcell.KeyEnter {
+			if len(currentSelection) > 0 {
+				chatView.Highlight() //Here I should show the image
+			} else {
+				chatView.Highlight(thisUI.imagesIDs[0]).ScrollToHighlight() //This happens when I press enter the first time
+			}
+		} else if len(currentSelection) > 0 {
+			index := 0
+			for idx, id := range thisUI.imagesIDs {
+				if id == currentSelection[0] {
+					index = idx
+					break
+				}
+			}
+
+			if key == tcell.KeyTab {
+				index = (index + 1) % len(thisUI.imagesIDs)
+			} else if key == tcell.KeyBacktab {
+				index = (index - 1 + len(thisUI.imagesIDs)) % len(thisUI.imagesIDs)
+			} else {
+				return
+			}
+			chatView.Highlight(thisUI.imagesIDs[index]).ScrollToHighlight()
+		}
+	}
+}
+
 func (thisUI *UI) BuildChatWindow() (*cview.Flex, error) {
 
 	chatView := cview.NewTextView()
 	chatView.SetBorder(true)
-	chatView.SetDynamicColors(true)
-	chatView.SetWordWrap(true)
+
+	chatView.SetDynamicColors(true).
+		SetWordWrap(true).
+		SetRegions(true)
+
+	chatView.SetDoneFunc(thisUI.selectMessage(chatView))
 
 	//Now we have all we need to create a new instance of the Whatsapp client
 	handler := NewWhatsappHandler(thisUI)
