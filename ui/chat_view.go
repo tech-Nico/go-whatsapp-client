@@ -104,11 +104,15 @@ func (thisUI *UI) buildSendMessageInputFrame(chatView *cview.TextView) *cview.Fr
 //this function should select based on the timestamp found on the region
 func (thisUI *UI) selectMessage(chatView *cview.TextView) func(tcell.Key) {
 	return func(key tcell.Key) {
+		log.Info("Call to selectMessage")
 		currentSelection := chatView.GetHighlights()
 
 		if key == tcell.KeyEnter {
 			if len(currentSelection) > 0 {
 				chatView.Highlight() //Here I should show the image
+				log.Info("Highlight message %s", currentSelection[0])
+				thisUI.MessageModal.SetText(fmt.Sprintf("Show image %s", currentSelection[0]))
+				thisUI.Pages.SwitchToPage("modal-message")
 			} else {
 				chatView.Highlight(thisUI.imagesIDs[0]).ScrollToHighlight() //This happens when I press enter the first time
 			}

@@ -21,6 +21,7 @@ type UI struct {
 	myJID           string
 	cyclePrimitives []*cview.Primitive //This is used to cycle primitives focus when user press Tab
 	imagesIDs       []string           //We'll store images IDs here so we can do the highlighting and show them when the user chose to show an image
+	MessageModal    *cview.Modal
 }
 
 func (thisUI *UI) BuildInfoBar() *cview.TextView {
@@ -54,8 +55,19 @@ func ShowApp() (*UI, error) {
 
 	logView := thisUI.BuildLogView()
 
+	thisUI.MessageModal = cview.NewModal().
+		SetText("blablabla").
+		AddButtons([]string{"Close"})
+
 	thisUI.Pages.AddPage("chats-page", flex, true, true)
 	thisUI.Pages.AddPage("logs-page", logView, true, false)
+	thisUI.Pages.AddPage("modal-message", thisUI.MessageModal, true, false)
+
+	thisUI.MessageModal.SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+		if buttonLabel == "Close" { //Not needed but just in case we decide to add another button
+			thisUI.Pages.SwitchToPage("chats-page")
+		}
+	})
 
 	// The bottom row has some info on where we are.
 	info := thisUI.BuildInfoBar()
