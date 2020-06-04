@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/Rhymen/go-whatsapp"
 	"github.com/Rhymen/go-whatsapp/binary/proto"
@@ -11,17 +12,19 @@ import (
 )
 
 type UI struct {
-	Client          client.WhatsappClient
-	Pages           *cview.Pages
-	App             *cview.Application
-	LogView         *cview.TextView
-	ChatView        *cview.TextView
-	selectedContact whatsapp.Chat
-	ContactList     *cview.List
-	myJID           string
-	cyclePrimitives []*cview.Primitive //This is used to cycle primitives focus when user press Tab
-	imagesIDs       []string           //We'll store images IDs here so we can do the highlighting and show them when the user chose to show an image
-	MessageModal    *cview.Modal
+	Client                  client.WhatsappClient
+	Pages                   *cview.Pages
+	App                     *cview.Application
+	LogView                 *cview.TextView
+	ChatView                *cview.TextView
+	selectedContact         whatsapp.Chat
+	ContactList             *cview.List
+	myJID                   string
+	cyclePrimitives         []*cview.Primitive //This is used to cycle primitives focus when user press Tab
+	imagesIDs               []string           //We'll store images IDs here so we can do the highlighting and show them when the user chose to show an image
+	MessageModal            *cview.Modal
+	SelectedContactMessages []interface{}
+	sync.RWMutex
 }
 
 func (thisUI *UI) BuildInfoBar() *cview.TextView {

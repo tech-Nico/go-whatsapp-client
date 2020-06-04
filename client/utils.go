@@ -46,9 +46,9 @@ func getChatsFileName() string {
 	return filepath.Join(home, ".go-whatsapp-client/chats.bin")
 }
 
-func getImageFileName(msg whatsapp.ImageMessage) string {
+func getImageFileName(msgID string) string {
 	home := getHomeFolder()
-	return filepath.Join(home, ".go-whatsapp-client/images/", msg.Info.Id+".jpg")
+	return filepath.Join(home, ".go-whatsapp-client/images/", msgID+".jpg")
 }
 
 func createFileIfNeeded(fileName string) (*os.File, error) {
@@ -204,7 +204,7 @@ func FormatDate(timestamp uint64) string {
 //SaveImage Saves a whatsapp image to disk
 func SaveImage(msg whatsapp.ImageMessage, content []byte) error {
 	log.Trace("Saving image to file...")
-	fileName := getImageFileName(msg)
+	fileName := getImageFileName(msg.Info.Id)
 	file, err := createFileIfNeeded(fileName)
 	if err != nil {
 		return fmt.Errorf("Error while creating image file %s: %s", fileName, err)
@@ -221,9 +221,9 @@ func SaveImage(msg whatsapp.ImageMessage, content []byte) error {
 }
 
 //ImageExists Check whether the image represented by the given Whatsapp message exists on filesytem
-func ImageExists(msg whatsapp.ImageMessage) bool {
-	log.Trace("Loading image %s from file", msg.Info.Id)
-	fileName := getImageFileName(msg)
+func ImageExists(msgID string) bool {
+	log.Trace("Loading image %s from file", msgID)
+	fileName := getImageFileName(msgID)
 	if _, err := os.Stat(fileName); err == nil {
 		return true
 	} else if os.IsNotExist(err) {
@@ -236,14 +236,14 @@ func ImageExists(msg whatsapp.ImageMessage) bool {
 
 //ReadImage Load the image represented by the given Whatsapp message.
 //If the image does not exists, return an error
-func ReadImage(msg whatsapp.ImageMessage) ([]byte, error) {
+func ReadImage(msgID string) ([]byte, error) {
 	image.RegisterFormat("jpeg", "jpeg", jpeg.Decode, jpeg.DecodeConfig)
 	log.Trace("Loading image file")
-	if !ImageExists(msg) {
-		return nil, fmt.Errorf("Image %s does not exist", getImageFileName(msg))
+	if !ImageExists(msgID) {
+		return nil, fmt.Errorf("Image %s does not exist", getImageFileName(msgID))
 	}
 
-	fileName := getImageFileName(msg)
+	fileName := getImageFileName(msgID)
 	file, err := os.Open(fileName)
 
 	if err != nil {

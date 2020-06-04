@@ -80,6 +80,26 @@ func (wc *WhatsappClient) GetHistory(jid string, count int) ([]interface{}, erro
 	return handler.messages, nil
 }
 
+//GetMessage Get a specific message
+func (wc *WhatsappClient) GetMessage(jid, msgID string) (interface{}, error) {
+	// create out history handler
+
+	handler := &historyHandler{c: wc}
+	test, err2 := wc.WaC.LoadMessagesAfter(jid, msgID, 1)
+	if err2 != nil {
+		log.Warnf("Error while testing: %s", err2)
+	} else {
+		log.Infof("Success! Got something: %s", test)
+	}
+
+	err := wc.WaC.LoadChatMessages(jid, 2, msgID, true, false, handler)
+	if err != nil {
+		return nil, fmt.Errorf("error retriving message %s for user with jid %s : %s", msgID, jid, err)
+	}
+
+	return handler.messages[0], nil
+}
+
 func (wc *WhatsappClient) findChat(jid string) (whatsapp.Chat, error) {
 	foundChat := whatsapp.Chat{}
 
